@@ -1,0 +1,149 @@
+import type { Config } from '../config'
+import { formatObject, scalingCalc } from './utils'
+
+export function generateTailwind({
+  breakpoints,
+  colors,
+  customSizes,
+  fonts,
+  themes,
+  typography,
+}: Pick<
+  Config,
+  'breakpoints' | 'colors' | 'customSizes' | 'fonts' | 'themes' | 'typography'
+>) {
+  // Theme
+  // NOTE: @theme is the single source of truth for the raw color palette.
+  // Easings are hand-authored in css/easings.css (static values, no generation needed).
+  const themeEntries = Object.entries(themes)
+  const firstTheme = themeEntries[0]?.[1] ?? {}
+  const theme = `/** Custom theme **/
+@theme {
+	--breakpoint-*: initial;
+	${formatObject(breakpoints, ([name, value]) => `--breakpoint-${name}: ${value}px;`)}
+
+  --color-*: initial;
+	${formatObject(firstTheme, ([key, value]) => `--color-${key}: ${value};`)}
+  ${formatObject(colors, ([key, value]) => `--color-${key}: ${value};`)}
+
+  --spacing-*: initial;
+	--spacing-0: 0;
+	--spacing-safe: var(--safe);
+	--spacing-gap: var(--gap);
+  ${formatObject(customSizes, ([key]) => `--spacing-${key}: var(--${key});`)}
+
+  --font-*: initial;
+  ${formatObject(fonts, ([name, variableName]) => `--font-${name}: var(${variableName});`)}
+}`
+
+  // Theme overwrites
+  const themeOverwrites = `
+/** Custom theme overwrites **/
+${formatObject(
+  themes,
+  ([name, value]) => `[data-theme=${name}] {
+  ${formatObject(value, ([key, value]) => `--color-${key}: ${value};`)}
+}`,
+  '\n'
+)}
+  `
+
+  // Utilities
+  const utilities = `
+/** Custom static utilities **/
+${Object.entries(typography)
+  .map(
+    ([name, value]) => `@utility ${name} {
+  ${Object.entries(value)
+    .filter((entry) => entry?.[0] && entry?.[1])
+    .filter((entry) => entry !== undefined)
+    .map(([key, value]) => {
+      if (key === 'font-size') {
+        if (typeof value === 'number') {
+          return `@apply yhn-text-${value};`
+        }
+
+        if (
+          typeof value === 'object' &&
+          value !== null &&
+          'mobile' in value &&
+          'desktop' in value
+        ) {
+          const v = value as { mobile: number; desktop: number }
+          return [
+            `font-size: ${scalingCalc(v.mobile)};`,
+            `@variant dt { font-size: ${scalingCalc(v.desktop)}; }`,
+          ].join('\n\t')
+        }
+
+        return `font-size: ${String(value)};`
+      }
+
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        'mobile' in value &&
+        'desktop' in value
+      ) {
+        const v = value as { mobile: string | number; desktop: string | number }
+        return [
+          `${key}: ${v.mobile};`,
+          `@variant dt { ${key}: ${v.desktop}; }`,
+        ].join('\n\t')
+      }
+
+      return `${key}: ${value};`
+    })
+    .join('\n\t')}
+}`
+  )
+  .join('\n')}
+
+@utility desktop-only {
+  @media (--mobile) {
+    display: none !important;
+  }
+}
+
+@utility mobile-only {
+  @media (--desktop) {
+    display: none !important;
+  }
+}
+
+@utility yhn-grid {
+	display: grid;
+	grid-template-columns: repeat(var(--columns), 1fr);
+	column-gap: var(--gap);
+}
+
+@utility yhn-layout-block {
+	margin-inline: auto;
+  width: calc(100% - 2 * var(--safe));
+}
+
+@utility yhn-layout-block-inner {
+	padding-inline: var(--safe);
+	width: 100%;
+}
+
+@utility yhn-layout-grid {
+	@apply yhn-layout-block yhn-grid;
+}
+
+@utility yhn-layout-grid-inner {
+	@apply yhn-layout-block-inner yhn-grid;
+}`
+
+  // Variants
+  const variants = `
+/** Custom variants **/
+${Object.keys(themes)
+  .map(
+    (name) =>
+      `@custom-variant ${name} (&:where([data-theme=${name}], [data-theme=${name}] *));`
+  )
+  .join('\n')}`
+
+  return [theme, themeOverwrites, utilities, variants].join('\n')
+}

@@ -1,0 +1,48 @@
+# Lib
+
+Non-UI code: hooks, integrations, styles, and utilities.
+
+> **Rule**: Renders UI → `components/` · Everything else → `lib/`
+
+## Quick Imports
+
+```tsx
+// Hooks
+import { useScrollTrigger, useTransform } from 'hamo'
+import { useDeviceDetection } from '@/lib/hooks/use-device-detection'
+
+// Utilities - explicit imports for better tree-shaking
+import { clamp, lerp } from '@/lib/utils/math'
+import { slugify } from '@/lib/utils/strings'
+import { fetchWithTimeout } from '@/lib/utils/fetch'
+
+// Styles
+import { colors, themes, breakpoints } from '@/lib/styles/config'
+
+// WebGL
+import { Canvas } from '@/lib/webgl/components/canvas'
+import { WebGLTunnel } from '@/lib/webgl/components/tunnel'
+
+// Dev tools
+import { useOrchestra } from '@/lib/dev'
+```
+
+## Directories
+
+| Directory | Purpose | Optional? |
+|-----------|---------|-----------|
+| [hooks/](hooks/README.md) | React hooks | ❌ Core |
+| [styles/](styles/README.md) | CSS & Tailwind config | ❌ Core |
+| [utils/](utils/README.md) | Pure utilities (math, fetch, metadata, strings, validation) | ❌ Core |
+| `env.ts` | Typed environment variables (Zod-validated singleton) | ❌ Core |
+| [features/](features/README.md) | Optional runtime features (WebGL, dev tools, GSAP) | ✅ Yes |
+| [webgl/](webgl/README.md) | 3D graphics with R3F | ✅ Yes |
+| [dev/](dev/README.md) | Debug tools (CMD+O) | ✅ Yes |
+
+## Scripts
+
+```bash
+bun dev              # Start dev server
+bun run generate     # Generate pages/components
+bun setup:styles     # Regenerate CSS
+```

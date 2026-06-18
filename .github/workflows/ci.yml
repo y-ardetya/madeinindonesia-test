@@ -1,0 +1,35 @@
+name: CI
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Build first: generates next-env.d.ts + .next/types (gitignored) that
+      # tsgo needs, and catches RSC/prerender regressions before deploy.
+      - name: Build
+        run: bun run build
+
+      - name: Run checks
+        run: bun run check
+
+      # COMPONENTS.md is generated from code; fail if it has drifted.
+      - name: Check generated manifest
+        run: bun run manifest:check

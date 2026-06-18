@@ -1,0 +1,145 @@
+.container {
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  touch-action: none;
+}
+
+.frameOverlay {
+  position: fixed;
+  inset: calc(24 / 375 * 100vw); /* Responsive gap using viewport units */
+  border-radius: 16px;
+  box-shadow: 0 0 0 9999px var(--color-primary);
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 10%, transparent);
+  pointer-events: none;
+  z-index: 1; /* Renders above canvas, but below page content */
+
+  @media (--desktop) {
+    inset: 12px;
+    border-radius: 8px;
+  }
+}
+
+.controlPanel {
+  position: fixed;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: color-mix(in srgb, var(--color-primary) 80%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 12%, transparent);
+  border-radius: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+  max-width: 90vw;
+  width: auto;
+
+  @media (--desktop) {
+    flex-direction: row;
+    bottom: 64px;
+    gap: 32px;
+    padding: 14px 28px;
+    border-radius: 9999px; /* Pill shape on desktop */
+  }
+}
+
+.controlGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+
+  @media (--desktop) {
+    align-items: flex-start;
+  }
+}
+
+.groupLabel {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: color-mix(in srgb, var(--color-secondary) 40%, transparent);
+  font-weight: 600;
+}
+
+.btnGroup {
+  display: flex;
+  gap: 4px;
+  background: color-mix(in srgb, var(--color-secondary) 4%, transparent);
+  padding: 4px;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 8%, transparent);
+}
+
+.btn {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: color-mix(in srgb, var(--color-secondary) 70%, transparent);
+  transition: all var(--duration-fast) var(--ease-out-expo);
+
+  &:hover {
+    color: var(--color-secondary);
+    background: color-mix(in srgb, var(--color-secondary) 6%, transparent);
+  }
+
+  &.isActive {
+    background: var(--color-secondary);
+    color: var(--color-primary);
+  }
+}
+
+/* Override for single toggle buttons (like Orbit) */
+button.btn:not(.btnGroup *) {
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 15%, transparent);
+  padding: 9px 20px;
+
+  &:hover {
+    border-color: var(--color-secondary);
+    background: color-mix(in srgb, var(--color-secondary) 6%, transparent);
+  }
+
+  &.isActive {
+    background: var(--color-secondary);
+    color: var(--color-primary);
+    border-color: var(--color-secondary);
+  }
+}
+
+.palette {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: color-mix(in srgb, var(--color-secondary) 4%, transparent);
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 8%, transparent);
+  height: 36px;
+}
+
+.colorBtn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-out-expo);
+
+  &:hover {
+    transform: scale(1.25);
+  }
+
+  &.colorActive {
+    border-color: var(--color-secondary);
+    transform: scale(1.15);
+  }
+}

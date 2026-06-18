@@ -1,0 +1,71 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.turbo
+
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+/.unlighthouse/
+
+# TypeScript
+*.tsbuildinfo
+
+# production
+/build
+/public/sw.js
+
+# misc
+.DS_Store
+*.pem
+.cursor/scratchpad.md
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# vercel
+.vercel
+
+# tldr
+.tldr
+
+.eslintcache
+
+# Windows crash dumps
+*.exe.stackdump
+
+.env*.local
+
+.npmrc
+
+*storybook.log
+storybook-static
+certificates
+
+next-env.d.ts
+# claude
+.claude
+plans
+
+# react-doctor — ignore generated diagnostics, keep the curated suppression list
+.react-doctor/*
+!.react-doctor/false-positives.md
+
+# prepare-handoff backup — created by `bun run handoff` when swapping README
+README.original.md

@@ -1,0 +1,151 @@
+# Lighthouse Performance Reports
+#
+# Runs Lighthouse on Vercel deployments and posts results as commit comments.
+# Our GitHub → Slack integration forwards these to Slack automatically.
+#
+# Optional GitHub Secrets:
+#   VERCEL_TOKEN - Vercel API token (Settings → Tokens). When absent or invalid,
+#                  the job skips gracefully with a warning instead of failing.
+
+name: Lighthouse
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Discover Vercel Project
+        id: vercel_info
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          # Lighthouse reporting is optional infra: degrade gracefully (skip, not
+          # fail) when the token is missing/invalid so PRs aren't blocked.
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::warning title=Lighthouse skipped::VERCEL_TOKEN secret is not set. Add it in Settings → Secrets → Actions to enable Lighthouse reports."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          project_name="${GITHUB_REPOSITORY##*/}"
+          echo "Looking for Vercel project: $project_name"
+
+          # `[]?` tolerates a null/error response (e.g. invalid token) instead of crashing.
+          teams=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v2/teams")
+          team_id=$(echo "$teams" | jq -r '.teams[]? | select(.slug=="darkroom-engineering") | .id')
+
+          projects=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v9/projects?teamId=$team_id")
+          project_id=$(echo "$projects" | jq -r ".projects[]? | select(.name==\"$project_name\") | .id")
+
+          if [ -z "$team_id" ] || [ -z "$project_id" ]; then
+            echo "::warning title=Lighthouse skipped::Could not resolve Vercel team/project (token invalid or lacks access). Skipping Lighthouse report."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Team ID: $team_id"
+          echo "Project ID: $project_id"
+          echo "team_id=$team_id" >> "$GITHUB_OUTPUT"
+          echo "project_id=$project_id" >> "$GITHUB_OUTPUT"
+
+      - name: Get Vercel Preview URL
+        id: vercel_url
+        if: steps.vercel_info.outputs.skip != 'true'
+        uses: zentered/vercel-preview-url@v1.4.0
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        with:
+          vercel_team_id: ${{ steps.vercel_info.outputs.team_id }}
+          vercel_project_id: ${{ steps.vercel_info.outputs.project_id }}
+
+      - name: Wait for Deployment
+        id: await
+        if: steps.vercel_info.outputs.skip != 'true'
+        uses: UnlyEd/github-action-await-vercel@v2.0.0
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        with:
+          deployment-url: ${{ steps.vercel_url.outputs.preview_url }}
+          timeout: 300
+          poll-interval: 10
+        continue-on-error: true
+
+      - name: Run Lighthouse
+        # Also require a non-empty preview URL: an empty URL would otherwise run
+        # Lighthouse against bare "https://" and report junk scores.
+        # This workflow REPORTS scores (as a commit comment) but intentionally
+        # does NOT gate/fail on them — scores are advisory, not a merge blocker.
+        if: steps.vercel_info.outputs.skip != 'true' && steps.await.outcome == 'success' && steps.vercel_url.outputs.preview_url != ''
+        id: lighthouse
+        uses: treosh/lighthouse-ci-action@v12
+        env:
+          LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
+        with:
+          urls: https://${{ steps.vercel_url.outputs.preview_url }}
+          # Average 3 runs to smooth out single-run cold-start variance (a cold
+          # run can score 10-20 points below a warmed one).
+          runs: 3
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Format Results
+        id: format
+        if: steps.vercel_info.outputs.skip != 'true'
+        uses: actions/github-script@v8
+        env:
+          DEPLOYMENT_FAILED: ${{ steps.await.outcome != 'success' }}
+          PREVIEW_URL: ${{ steps.vercel_url.outputs.preview_url }}
+          MANIFEST: ${{ steps.lighthouse.outputs.manifest }}
+          LINKS: ${{ steps.lighthouse.outputs.links }}
+        with:
+          script: |
+            if (process.env.DEPLOYMENT_FAILED === 'true') {
+              core.setOutput('comment', '⚠️ Vercel deployment failed or timed out. Lighthouse audit skipped.');
+              return;
+            }
+
+            try {
+              const manifest = JSON.parse(process.env.MANIFEST);
+              const links = JSON.parse(process.env.LINKS);
+              const previewUrl = process.env.PREVIEW_URL;
+
+              const scores = manifest[0].summary;
+              const reportUrl = Object.values(links)[0];
+
+              const emoji = (score) => score >= 0.9 ? '🟢' : score >= 0.5 ? '🟠' : '🔴';
+              const format = (score) => Math.round(score * 100);
+
+              const comment = [
+                `⚡️ [Lighthouse report](${reportUrl}) for this commit:`,
+                '',
+                `${emoji(scores.performance)} Performance: ${format(scores.performance)}`,
+                `${emoji(scores.accessibility)} Accessibility: ${format(scores.accessibility)}`,
+                `${emoji(scores['best-practices'])} Best Practices: ${format(scores['best-practices'])}`,
+                `${emoji(scores.seo)} SEO: ${format(scores.seo)}`,
+                '',
+                `*Tested on [${previewUrl}](https://${previewUrl})*`
+              ].join('\n');
+
+              core.setOutput('comment', comment);
+            } catch (error) {
+              console.error('Error:', error);
+              core.setOutput('comment', '⚠️ Failed to generate Lighthouse report. Check workflow logs.');
+            }
+
+      - name: Post Commit Comment
+        if: steps.vercel_info.outputs.skip != 'true' && steps.format.outputs.comment != ''
+        uses: peter-evans/commit-comment@v4
+        with:
+          body: ${{ steps.format.outputs.comment }}

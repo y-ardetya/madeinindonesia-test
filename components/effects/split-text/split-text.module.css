@@ -1,0 +1,7 @@
+.splitText {
+  overflow-block: auto;
+}
+/* split-text.module.css */
+.hidden {
+  visibility: hidden;
+}

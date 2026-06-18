@@ -1,0 +1,10 @@
+.hero {
+  min-height: 100dvh;
+  padding-top: calc(120 / 375 * 100vw);
+  padding-bottom: calc(48 / 375 * 100vw);
+
+  @media (--desktop) {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}

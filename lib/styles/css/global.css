@@ -1,0 +1,189 @@
+/* GLOBAL CSS FILE - Contains global styles that shouldn't be reset */
+
+html {
+  --scrollbar-gutter: 0px;
+  scrollbar-gutter: stable; /* This is needed to prevent the scrollbar from jumping */
+
+  &.lenis-stopped {
+    --scrollbar-gutter: var(--scrollbar-width);
+  }
+}
+
+* {
+  scrollbar-width: none;
+}
+
+/*
+ * Derived semantic tokens — depth, hairlines, motion.
+ * Surfaces and lines are derived from the active theme's colors via color-mix,
+ * so they adapt automatically across every [data-theme] without new palette
+ * entries. The red `--color-contrast` doubles as the accent.
+ */
+:root {
+  --surface: color-mix(
+    in srgb,
+    var(--color-secondary) 4%,
+    var(--color-primary)
+  );
+  --surface-2: color-mix(
+    in srgb,
+    var(--color-secondary) 8%,
+    var(--color-primary)
+  );
+  --line: color-mix(in srgb, var(--color-secondary) 14%, transparent);
+  --line-strong: color-mix(in srgb, var(--color-secondary) 28%, transparent);
+
+  --duration-fast: 200ms;
+  --duration: 400ms;
+  --duration-slow: 800ms;
+}
+
+html.overflow-hidden {
+  overflow: hidden;
+  touch-action: none;
+}
+
+body {
+  min-height: 100vh;
+  overscroll-behavior: none;
+  background-color: var(--color-primary);
+  color: var(--color-secondary);
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/*
+ * Global safe-area border lines — run the full page height on both sides,
+ * positioned at exactly var(--safe) from the viewport edge (matching all
+ * layout padding). Uses the --line token so they adapt to every theme.
+ */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+
+/* Selection styling */
+*::selection {
+  background-color: var(--color-contrast);
+  color: var(--color-primary);
+}
+
+/* SVG icon colors */
+svg.icon {
+  path[fill],
+  rect[fill],
+  circle[fill] {
+    fill: currentColor;
+  }
+  path[stroke],
+  rect[stroke],
+  circle[stroke] {
+    stroke: currentColor;
+  }
+}
+
+/* Hover states */
+.link {
+  @media (--hover) {
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+/* Focus states */
+*:focus-visible {
+  outline: 2px solid var(--color-contrast);
+  outline-offset: 2px;
+  border-radius: 1px;
+}
+
+html.scrollbar-grabbing,
+img {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+button {
+  cursor: pointer;
+  /* Fix vertical text centering by trimming font metric space */
+  text-box-trim: both;
+  text-box-edge: cap alphabetic;
+  user-select: none;
+}
+
+html.screenshot {
+  *:not(:has(canvas), canvas, :has(#orchestra), #orchestra, #orchestra *) {
+    /* biome-ignore lint: it's all good */
+    opacity: 0 !important;
+  }
+}
+
+/*
+ * Reveal-on-scroll primitive — paired with the `useReveal` hook.
+ * The hook toggles [data-reveal] hidden→visible on a container and indexes
+ * [data-reveal-item] children via --reveal-index. Only transform + opacity
+ * animate, so the reveal runs on the compositor thread — off the main thread,
+ * unaffected by React hydration. Scoped under [data-reveal] so it applies only
+ * once JS has run: with JS disabled the attribute never appears and content
+ * renders visible. Per-section knobs: set these on the container —
+ *   --reveal-transform : hidden-state offset (default translateY(16px))
+ *   --reveal-stagger   : delay step between items (default 60ms)
+ *   --reveal-duration  : per-item duration (default 700ms)
+ */
+[data-reveal] [data-reveal-item] {
+  opacity: 0;
+  transform: var(--reveal-transform, translateY(16px));
+  transition:
+    opacity var(--reveal-duration, 700ms) var(--ease-out-expo),
+    transform var(--reveal-duration, 700ms) var(--ease-out-expo);
+  transition-delay: calc(var(--reveal-index, 0) * var(--reveal-stagger, 60ms));
+}
+
+[data-reveal="visible"] [data-reveal-item] {
+  opacity: 1;
+  transform: none;
+}
+
+/*
+ * Respect reduced-motion: neutralize CSS animations/transitions globally.
+ * GSAP and WebGL animations gate themselves via usePreferredReducedMotion();
+ * the reveal primitive's hook short-circuits to the visible state.
+ */
+@media (--reduced-motion) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    scroll-behavior: auto;
+  }
+
+  /* Higher specificity than the [data-reveal] base rule above, so reveal
+     items never animate even though that rule sets a `transition` shorthand. */
+  [data-reveal] [data-reveal-item] {
+    transition-duration: 0.01ms;
+  }
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
