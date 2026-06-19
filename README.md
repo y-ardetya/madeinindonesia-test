@@ -4,14 +4,6 @@
 
 A modern Next.js 16 starter with React 19, Tailwind CSS v4, and WebGPU with WebGL fallback. *YHN* derived from Yohane aka Yoga Ardli Ardetya.
 
-> **Note**: This README is for template developers. For client handoff, see [PROD-README.md](PROD-README.md).
-
-Run `bun dev` and open [localhost:3000](http://localhost:3000) — the landing page is a step-by-step manual that walks you from a fresh clone to a shippable site. The rest of this README is the reference version.
-
-[![Deploy with Vercel](https://vercel.com/button)]
-
-> After deploying, set `NEXT_PUBLIC_BASE_URL` to your domain in the project's environment variables — it drives SEO, canonical URLs, sitemaps, and social ca## Features
-
 - **Next.js 16 + React 19** — App Router with React 19.2 and strict TypeScript out of the box
 - **Tailwind v4** — Tailwind CSS v4 alongside CSS Modules
 - **WebGL / 3D Graphics** — Three.js and React Three Fiber architecture
@@ -59,8 +51,6 @@ components/            # UI components
 lib/                   # Everything non-UI
   ├── hooks/           # Custom React hooks
   ├── styles/          # CSS & Tailwind
-  ├── webgl/           # 3D graphics (opt-in)
-  └── dev/             # Debug tools (optional)
 ```
 
 > **Mental model:** UI → `components/`, everything else → `lib/`.
