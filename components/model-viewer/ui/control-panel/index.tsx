@@ -97,19 +97,20 @@ export function ControlPanel() {
         </button>
 
         {/* Active object name chip */}
-        {selectedId && (
-          <div className={s.activeObjectChip}>
-            <span className={s.activeObjectDot} />
-            <span className={s.activeObjectName}>
-              {models.find((m) => m.id === selectedId)?.name ?? 'Object'}
-            </span>
-          </div>
-        )}
+        <div className={cn(s.activeObjectChip, !selectedId && s.isNone)}>
+          <span className={s.activeObjectDot} />
+          <span className={s.activeObjectName}>
+            Active Object:{' '}
+            {selectedId
+              ? (models.find((m) => m.id === selectedId)?.name ?? 'Object')
+              : 'None'}
+          </span>
+        </div>
 
         <div className={s.controlRow}>
           <div className={s.controlGroup}>
-            <span className={s.groupLabel}>Camera Views</span>
-            <div className={s.btnGroup}>
+            <span className={s.groupLabel}>CAMERA VIEWS</span>
+            <div className={cn(s.btnGroup, s.cameraViewsGroup)}>
               {PRESET_VIEWS.map((view) => (
                 <button
                   key={view}
@@ -127,7 +128,7 @@ export function ControlPanel() {
           </div>
 
           <div className={s.controlGroup}>
-            <span className={s.groupLabel}>Actions</span>
+            <span className={s.groupLabel}>ACTIONS</span>
             <div className={s.btnGroup}>
               <button
                 type="button"

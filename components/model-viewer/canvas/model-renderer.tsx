@@ -31,6 +31,7 @@ export function ModelRenderer({
             // biome-ignore lint/a11y/noStaticElementInteractions: react-three-fiber group is interactive in 3D scene
             <group
               key={model.id}
+              position={model.positionOffset ?? [0, 0, 0]}
               onClick={(e) => {
                 e.stopPropagation()
                 setSelectedId(model.id)
@@ -56,7 +57,7 @@ export function ModelRenderer({
                   {isSelected && (
                     <Outlines
                       thickness={3}
-                      color="#00cfff"
+                      color="#ffffff"
                       transparent
                       opacity={0.9}
                     />
@@ -73,7 +74,7 @@ export function ModelRenderer({
             // biome-ignore lint/a11y/noStaticElementInteractions: react-three-fiber group is interactive in 3D scene
             <group
               key={model.id}
-              position={[obj.center.x, obj.center.y, obj.center.z]}
+              position={model.positionOffset ?? [0, 0, 0]}
               onClick={(e) => {
                 e.stopPropagation()
                 setSelectedId(model.id)

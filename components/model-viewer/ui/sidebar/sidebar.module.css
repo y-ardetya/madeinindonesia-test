@@ -3,13 +3,13 @@
   position: fixed;
   top: 20px;
   left: 20px;
-  width: 320px;
+  width: 350px;
   max-height: calc(100vh - 160px);
   z-index: 10;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 24px;
+  padding: 18px;
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 6px;
@@ -17,7 +17,7 @@
   color: #000000;
   overflow-y: auto;
 
-  @media (max-width: 800px) {
+  @media (--mobile) {
     top: 0;
     left: 0;
     bottom: 0;
@@ -38,14 +38,16 @@
 }
 
 .sidebarTitle {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-family: var(--font-script);
+  font-size: calc(28 / 375 * 100vw);
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   padding-bottom: 8px;
   margin-bottom: 4px;
   color: #000000;
+
+  @media (--desktop) {
+    font-size: calc(30 / 1440 * 100vw);
+  }
 }
 
 .uploadArea {
@@ -76,12 +78,14 @@
 .uploadText {
   font-size: 12px;
   font-weight: 600;
+  font-family: var(--font-serif);
 }
 
 .uploadSubtext {
   font-size: 10px;
   color: rgba(0, 0, 0, 0.45);
   margin-top: 4px;
+  font-family: var(--font-serif);
 }
 
 .fileInput {
@@ -125,6 +129,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: var(--font-serif);
 }
 
 .modelMeta {
@@ -187,14 +192,14 @@
 .mobileMenuTrigger {
   display: none;
 
-  @media (max-width: 800px) {
+  @media (--mobile) {
     display: flex;
     position: fixed;
-    top: 20px;
-    left: 20px;
+    top: 10px;
+    left: 10px;
     width: 44px;
     height: 44px;
-    border-radius: 50%;
+    border-radius: 4px;
     background: #ffffff;
     color: #000000;
     border: 1px solid rgba(0, 0, 0, 0.1);
@@ -214,7 +219,7 @@
 .mobileOverlay {
   display: none;
 
-  @media (max-width: 800px) {
+  @media (--mobile) {
     display: block;
     position: fixed;
     inset: 0;
@@ -228,7 +233,7 @@
 .mobileCloseBtn {
   display: none;
 
-  @media (max-width: 800px) {
+  @media (--mobile) {
     display: flex;
     position: absolute;
     top: 14px;
@@ -247,5 +252,55 @@
     &:active {
       background-color: rgba(0, 0, 0, 0.08);
     }
+  }
+}
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 8px;
+  font-family: var(--font-serif);
+}
+
+.libraryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.libraryBtn {
+  font-family: var(--font-serif);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.7);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: #000000;
+    color: #000000;
+  }
+}
+
+.subtextLib {
+  font-size: calc(10 / 375 * 100vw);
+  color: rgba(0, 0, 0, 0.45);
+  font-family: var(--font-serif);
+  margin-bottom: 2px;
+
+   @media (--desktop) {
+    font-size: calc(8 / 1440 * 100vw);
   }
 }

@@ -11,11 +11,11 @@ export const INITIAL_POSE = {
 
 export const PRESET_VIEWS = [
   'front',
-  'back',
-  'left',
-  'right',
   'top',
+  'left',
   'bottom',
+  'right',
+  'back',
   'isometric',
 ] as const
 
@@ -36,7 +36,7 @@ export const ORBIT_CONTROLS_DEFAULTS = {
 } as const
 
 export const GRID_DEFAULTS = {
-  position: [0, -0.6, 0] as [number, number, number],
+  position: [0, -0.5, 0] as [number, number, number],
   args: [50, 50] as [number, number],
   cellSize: 1,
   cellThickness: 1,

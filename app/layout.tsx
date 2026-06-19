@@ -13,7 +13,7 @@ import { fontsVariable } from '@/lib/styles/fonts'
 import AppData from '@/package.json'
 
 const APP_NAME = AppData.name
-const APP_DEFAULT_TITLE = 'Yohane'
+const APP_DEFAULT_TITLE = 'YHN - Model Viewer'
 const APP_TITLE_TEMPLATE = '%s - YHN'
 const APP_DESCRIPTION = AppData.description
 

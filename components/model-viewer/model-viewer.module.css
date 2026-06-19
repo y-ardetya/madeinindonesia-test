@@ -15,8 +15,8 @@
 
 .frameOverlay {
   position: fixed;
-  inset: calc(4 / 375 * 100vw);
-  border-radius: 16px;
+  inset: mobile-vw(3);
+  border-radius: 6px;
   box-shadow: 0 0 0 9999px #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.1);
   pointer-events: none;

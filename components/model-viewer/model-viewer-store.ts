@@ -21,6 +21,7 @@ export interface LoadedModel {
   type: 'glb' | 'gltf' | 'stl' | 'cube'
   visible: boolean
   color: string
+  positionOffset?: [number, number, number]
 }
 
 // Curated colors for auto-assignment
@@ -66,6 +67,11 @@ interface ModelViewerActions {
   setInitialPose: (pose: ModelViewerState['initialPose']) => void
   triggerFit: () => void
   triggerReset: () => void
+  addLocalModel: (
+    name: string,
+    url: string,
+    type: 'glb' | 'gltf' | 'stl'
+  ) => void
 }
 
 type ModelViewerStore = ModelViewerState & ModelViewerActions
@@ -78,6 +84,7 @@ export const useModelViewerStore = create<ModelViewerStore>((set, get) => ({
       type: 'cube',
       visible: true,
       color: '#81B29A',
+      positionOffset: [0, 0, 0],
     },
   ],
   selectedId: null,
@@ -92,7 +99,12 @@ export const useModelViewerStore = create<ModelViewerStore>((set, get) => ({
     const { models } = get()
     const newModels: LoadedModel[] = []
 
-    for (const file of files) {
+    const hasDefaultCube = models.some((m) => m.id === 'default-cube')
+    const nonCubeCount = models.filter((m) => m.type !== 'cube').length
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (!file) continue
       const ext = file.name.split('.').pop()?.toLowerCase()
       if (ext === 'glb' || ext === 'gltf' || ext === 'stl') {
         const url = URL.createObjectURL(file)
@@ -101,6 +113,36 @@ export const useModelViewerStore = create<ModelViewerStore>((set, get) => ({
           (models.length + newModels.length) % COLOR_PALETTE.length
         const color = COLOR_PALETTE[colorIndex]?.hex ?? '#E07A5F'
 
+        // Determine spawn position offset slots
+        const slotIdx = nonCubeCount + i
+        const slotIndex = hasDefaultCube ? slotIdx + 1 : slotIdx
+
+        const slots: [number, number, number][] = [
+          [0, 0, 0], // Center
+          [10, 0, 0], // Right
+          [-10, 0, 0], // Left
+          [0, 0, -10], // Behind
+          [0, 0, 10], // Front
+          [10, 0, -10], // Right-Behind
+          [-10, 0, -10], // Left-Behind
+          [10, 0, 10], // Right-Front
+          [-10, 0, 10], // Left-Front
+        ]
+
+        let positionOffset: [number, number, number] = [0, 0, 0]
+        if (slotIndex < slots.length) {
+          positionOffset = slots[slotIndex]!
+        } else {
+          const ring = Math.floor(slotIndex / 8) + 1
+          const angle = (slotIndex % 8) * (Math.PI / 4)
+          const radius = ring * 3
+          positionOffset = [
+            Math.cos(angle) * radius,
+            0,
+            Math.sin(angle) * radius,
+          ]
+        }
+
         newModels.push({
           id,
           name: file.name,
@@ -108,6 +150,7 @@ export const useModelViewerStore = create<ModelViewerStore>((set, get) => ({
           type: ext as 'glb' | 'gltf' | 'stl',
           visible: true,
           color,
+          positionOffset,
         })
       }
     }
@@ -171,5 +214,57 @@ export const useModelViewerStore = create<ModelViewerStore>((set, get) => ({
   triggerReset: () => {
     // Increment resetTrigger — Scene reads this to replay the initial pose
     set((state) => ({ resetTrigger: state.resetTrigger + 1 }))
+  },
+
+  addLocalModel: (name, url, type) => {
+    const { models } = get()
+
+    const hasDefaultCube = models.some((m) => m.id === 'default-cube')
+    const nonCubeCount = models.filter((m) => m.type !== 'cube').length
+
+    const slotIdx = nonCubeCount
+    const slotIndex = hasDefaultCube ? slotIdx + 1 : slotIdx
+
+    const slots: [number, number, number][] = [
+      [0, 0, 0], // Center
+      [5, 0, 0], // Right
+      [-5, 0, 0], // Left
+      [0, 0, -5], // Behind
+      [0, 0, 5], // Front
+      [5, 0, -5], // Right-Behind
+      [-5, 0, -5], // Left-Behind
+      [5, 0, 5], // Right-Front
+      [-5, 0, 5], // Left-Front
+    ]
+
+    let positionOffset: [number, number, number] = [0, 0, 0]
+    if (slotIndex < slots.length) {
+      positionOffset = slots[slotIndex]!
+    } else {
+      const ring = Math.floor(slotIndex / 8) + 1
+      const angle = (slotIndex % 8) * (Math.PI / 4)
+      const radius = ring * 5
+      positionOffset = [Math.cos(angle) * radius, 0, Math.sin(angle) * radius]
+    }
+
+    const colorIndex = models.length % COLOR_PALETTE.length
+    const color = COLOR_PALETTE[colorIndex]?.hex ?? '#E07A5F'
+    const id = `${name}-${Date.now()}`
+
+    set((state) => ({
+      models: [
+        ...state.models,
+        {
+          id,
+          name,
+          url,
+          type,
+          visible: true,
+          color,
+          positionOffset,
+        },
+      ],
+      fitTrigger: state.fitTrigger + 1,
+    }))
   },
 }))
