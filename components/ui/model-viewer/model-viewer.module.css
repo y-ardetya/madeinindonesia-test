@@ -3,7 +3,7 @@
   width: 100%;
   min-height: 100dvh;
   touch-action: none;
-  background-color: #0c0c0e;
+  background-color: #ffffff;
   overflow: hidden;
   transition: outline 0.15s ease;
 }

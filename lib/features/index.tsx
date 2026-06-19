@@ -10,21 +10,6 @@
 
 import dynamic from 'next/dynamic'
 
-const LazyGlobalCanvas = dynamic(
-  () =>
-    import('@/webgl/components/global-canvas').then((mod) => ({
-      default: mod.GlobalCanvas,
-    })),
-  { ssr: false }
-)
-
-const isDevelopment = process.env.NODE_ENV === 'development'
-
-// Lazy imports to avoid loading unused features
-const OrchestraTools = dynamic(
-  () => import('@/dev').then((mod) => ({ default: mod.OrchestraTools })),
-  { ssr: false }
-)
 
 const GSAPRuntime = dynamic(
   () =>
@@ -45,10 +30,6 @@ export function OptionalFeatures() {
     <>
       {/* GSAP Runtime - always included (lightweight) */}
       <GSAPRuntime />
-      {/* WebGL/WebGPU Canvas - lazy loaded, only mounts when <Wrapper webgl> is used */}
-      {/* Development tools - only in development */}
-      {isDevelopment && <OrchestraTools />}
-      <LazyGlobalCanvas />
     </>
   )
 }

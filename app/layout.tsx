@@ -1,10 +1,10 @@
 import '@/lib/styles/css/index.css'
 import { Analytics } from '@vercel/analytics/next'
+import { TransformProvider } from 'hamo'
 import type { Metadata, Viewport } from 'next'
 import { draftMode } from 'next/headers'
 import type { PropsWithChildren } from 'react'
 import { ReactTempus } from 'tempus/react'
-import { AppShell } from '@/components/ui/app-shell'
 import { RealViewport } from '@/components/ui/real-viewport'
 import { APP_BASE_URL } from '@/lib/env'
 import { OptionalFeatures } from '@/lib/features'
@@ -45,9 +45,9 @@ export default async function Layout({ children }: PropsWithChildren) {
       suppressHydrationWarning
     >
       <body>
-        <AppShell>
+        <TransformProvider>
           <RealViewport>{children}</RealViewport>
-        </AppShell>
+        </TransformProvider>
 
         <OptionalFeatures />
         <ReactTempus patch={!isDraftMode} />
