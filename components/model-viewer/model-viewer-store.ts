@@ -25,12 +25,16 @@ export interface LoadedModel {
 
 // Curated colors for auto-assignment
 export const COLOR_PALETTE = [
-  { name: 'Ochre', hex: '#F2CC8F' },
-  { name: 'Terracotta', hex: '#E07A5F' },
-  { name: 'Sage', hex: '#81B29A' },
-  { name: 'Indigo', hex: '#3D5A80' },
-  { name: 'Rose', hex: '#F38375' },
-  { name: 'Charcoal', hex: '#444444' },
+  { name: 'Pastel Pink', hex: '#FFD1DC' },
+  { name: 'Pastel Peach', hex: '#FFDAB9' },
+  { name: 'Pastel Yellow', hex: '#FDFD96' },
+  { name: 'Pastel Mint', hex: '#B5EAD7' },
+  { name: 'Pastel Sky', hex: '#AEC6CF' },
+  { name: 'Pastel Lavender', hex: '#C3B1E1' },
+  { name: 'Pastel Lilac', hex: '#DCD0FF' },
+  { name: 'Pastel Rose', hex: '#F4C2C2' },
+  { name: 'Pastel Coral', hex: '#FFB7B2' },
+  { name: 'Pastel Periwinkle', hex: '#C6D8FF' },
 ]
 
 interface ModelViewerState {
@@ -67,7 +71,6 @@ interface ModelViewerActions {
 type ModelViewerStore = ModelViewerState & ModelViewerActions
 
 export const useModelViewerStore = create<ModelViewerStore>((set, get) => ({
-  // Initial state
   models: [
     {
       id: 'default-cube',

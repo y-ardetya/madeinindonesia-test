@@ -1,0 +1,29 @@
+.container {
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  touch-action: none;
+  background-color: #ffffff;
+  overflow: hidden;
+  transition: outline 0.15s ease;
+}
+
+.container.isDragging {
+  outline: 2px dashed rgba(0, 207, 255, 0.6);
+  outline-offset: -4px;
+}
+
+.frameOverlay {
+  position: fixed;
+  inset: calc(4 / 375 * 100vw);
+  border-radius: 16px;
+  box-shadow: 0 0 0 9999px #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+  z-index: 2;
+
+  @media (--desktop) {
+    inset: 8px;
+    border-radius: 6px;
+  }
+}

@@ -1,11 +1,7 @@
 'use client'
 
-import { ModelViewer } from '@/components/ui/model-viewer'
+import { ModelViewer } from '@/components/model-viewer'
 
 export default function HomePage() {
-  return (
-    <div className='bg-white'>
-      <ModelViewer />
-    </div>
-  )
+  return <ModelViewer />
 }

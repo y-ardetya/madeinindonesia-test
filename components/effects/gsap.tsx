@@ -4,7 +4,6 @@
  * GSAP Runtime
  *
  * Syncs GSAP's ticker with Tempus for consistent frame timing.
- * ScrollTrigger sync is handled automatically by `<Lenis root />`.
  *
  * @example
  * ```tsx

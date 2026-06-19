@@ -10,7 +10,6 @@
 
 import dynamic from 'next/dynamic'
 
-
 const GSAPRuntime = dynamic(
   () =>
     import('@/components/effects/gsap').then((mod) => ({

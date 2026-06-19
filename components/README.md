@@ -4,6 +4,7 @@ UI components organized by purpose.
 
 ```
 components/
+├── model-viewer/ → Fully featured 3D Model Viewer
 ├── ui/        → Primitives (reusable across projects)
 ├── layout/    → Site chrome (customize per project)
 └── effects/   → Animation & visual enhancements

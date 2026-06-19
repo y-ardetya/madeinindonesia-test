@@ -74,6 +74,7 @@ Use `useReveal` (CSS-driven, compositor thread) for reveal-on-scroll and entranc
 
 ```
 components/
+├── model-viewer/ → Fully featured 3D Model Viewer
 ├── ui/        → Primitives (reusable)
 ├── layout/    → Site chrome (customize)
 └── effects/   → Animations

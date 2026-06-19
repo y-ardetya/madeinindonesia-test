@@ -1,11 +1,9 @@
 'use client'
 
-import { Canvas } from '@react-three/fiber'
 import cn from 'clsx'
-import { Suspense, useRef, useState } from 'react'
-import s from './model-viewer.module.css'
-import { useModelViewerStore } from './model-viewer-store'
-import { Scene } from './scene'
+import { useRef, useState } from 'react'
+import { useModelViewerStore } from '@/components/model-viewer/model-viewer-store'
+import s from './sidebar.module.css'
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -66,7 +64,7 @@ const TrashIcon = () => (
   </svg>
 )
 
-const UploadIcon = () => (
+export const UploadIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="20"
@@ -85,101 +83,99 @@ const UploadIcon = () => (
   </svg>
 )
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+const MenuIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <line x1="4" x2="20" y1="12" y2="12" />
+    <line x1="4" x2="20" y1="6" y2="6" />
+    <line x1="4" x2="20" y1="18" y2="18" />
+  </svg>
+)
 
-export function ModelViewer() {
+const CloseIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <line x1="18" x2="6" y1="6" y2="18" />
+    <line x1="6" x2="18" y1="18" y2="6" />
+  </svg>
+)
+
+export function Sidebar() {
   const models = useModelViewerStore((s) => s.models)
   const selectedId = useModelViewerStore((s) => s.selectedId)
-  const cameraView = useModelViewerStore((s) => s.cameraView)
   const addModels = useModelViewerStore((s) => s.addModels)
   const removeModel = useModelViewerStore((s) => s.removeModel)
   const toggleVisibility = useModelViewerStore((s) => s.toggleVisibility)
   const setColor = useModelViewerStore((s) => s.setColor)
   const setSelectedId = useModelViewerStore((s) => s.setSelectedId)
-  const setCameraView = useModelViewerStore((s) => s.setCameraView)
-  const triggerFit = useModelViewerStore((s) => s.triggerFit)
-  const triggerReset = useModelViewerStore((s) => s.triggerReset)
 
-  // Drag-and-drop state
-  const [isDragging, setIsDragging] = useState(false)
-  const dragCounter = useRef(0)
+  const [isOpen, setIsOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // ─── File input handler ───────────────────────────────────────────────────
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return
     addModels(Array.from(e.target.files))
-    // Reset input so same file can be re-uploaded
     e.target.value = ''
   }
 
-  // ─── Drag-and-drop handlers ───────────────────────────────────────────────
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault()
-    dragCounter.current += 1
-    setIsDragging(true)
-  }
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    dragCounter.current -= 1
-    if (dragCounter.current === 0) setIsDragging(false)
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    dragCounter.current = 0
-    setIsDragging(false)
-    const files = Array.from(e.dataTransfer.files)
-    addModels(files)
-  }
-
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop container
-    <div
-      className={cn(s.container, isDragging && s.isDragging)}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-    >
-      {/* 3D Canvas */}
-      <Canvas
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-        }}
-        gl={{ antialias: true, alpha: false }}
-        shadows
-        dpr={[1, 2]}
+    <>
+      {/* Mobile trigger */}
+      <button
+        type="button"
+        className={s.mobileMenuTrigger}
+        onClick={() => setIsOpen(true)}
+        aria-label="Open models menu"
       >
-        <Suspense fallback={null}>
-          <Scene />
-        </Suspense>
-      </Canvas>
+        <MenuIcon />
+      </button>
 
-      {/* Drag overlay hint */}
-      {isDragging && (
-        <div className={s.dropOverlay} aria-hidden="true">
-          <div className={s.dropHint}>
-            <UploadIcon />
-            <span>Drop 3D files here</span>
-            <span className={s.dropSub}>GLTF · GLB · STL</span>
-          </div>
-        </div>
+      {/* Backdrop (mobile only) */}
+      {isOpen && (
+        // biome-ignore lint/a11y/noStaticElementInteractions: backdrop overlay
+        <div
+          className={s.mobileOverlay}
+          onClick={() => setIsOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setIsOpen(false)
+          }}
+          role="presentation"
+        />
       )}
 
-      <div className={s.frameOverlay} />
+      {/* Sidebar Panel */}
+      <div className={cn(s.sidebar, isOpen && s.isOpen)}>
+        {/* Mobile close button */}
+        <button
+          type="button"
+          className={s.mobileCloseBtn}
+          onClick={() => setIsOpen(false)}
+          aria-label="Close models menu"
+        >
+          <CloseIcon />
+        </button>
 
-      {/* Sidebar */}
-      <div className={s.sidebar}>
-        <h2 className={s.sidebarTitle}>3D Models</h2>
+        <h2 className={s.sidebarTitle}>YHN Model Viewer</h2>
 
         <label className={s.uploadArea}>
           <UploadIcon />
@@ -273,70 +269,6 @@ export function ModelViewer() {
           )}
         </div>
       </div>
-
-      {/* Bottom control panel */}
-      <div className={s.controlPanel}>
-        {/* Active object name chip */}
-        {selectedId && (
-          <div className={s.activeObjectChip}>
-            <span className={s.activeObjectDot} />
-            <span className={s.activeObjectName}>
-              {models.find((m) => m.id === selectedId)?.name ?? 'Object'}
-            </span>
-          </div>
-        )}
-
-        <div className={s.controlRow}>
-          <div className={s.controlGroup}>
-            <span className={s.groupLabel}>Camera Views</span>
-            <div className={s.btnGroup}>
-              {(
-                [
-                  'front',
-                  'back',
-                  'left',
-                  'right',
-                  'top',
-                  'bottom',
-                  'isometric',
-                ] as const
-              ).map((view) => (
-                <button
-                  key={view}
-                  type="button"
-                  className={cn(s.btn, cameraView === view && s.isActive)}
-                  onClick={() => setCameraView(view)}
-                >
-                  {view.charAt(0).toUpperCase() + view.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className={s.controlGroup}>
-            <span className={s.groupLabel}>Actions</span>
-            <div className={s.btnGroup}>
-              <button
-                type="button"
-                className={s.btn}
-                onClick={triggerFit}
-                title="Fit entire scene to view"
-              >
-                Fit View
-              </button>
-              <button
-                type="button"
-                className={s.btn}
-                onClick={triggerReset}
-                title="Reset camera to initial position"
-              >
-                Reset Camera
-              </button>
-            </div>
-          </div>
-        </div>
-        {/* end controlRow */}
-      </div>
-    </div>
+    </>
   )
 }

@@ -15,9 +15,23 @@ Run `bun dev` and open [localhost:3000](http://localhost:3000) — the landing p
 - **Next.js 16 + React 19** — App Router with React 19.2 and strict TypeScript out of the box
 - **Tailwind v4** — Tailwind CSS v4 alongside CSS Modules
 - **WebGL / 3D Graphics** — Three.js and React Three Fiber architecture
+- **3D Model Viewer** — Fully modular R3F viewport with drag-and-drop loading, multi-model STL/GLTF support, custom presets, pivot controls, outline helpers, and adaptive auto-fitting
 - **Unified Generator** — scaffold pages and components quickly via `bun run generate`
 - **Handoff Utility** — prepare the codebase for delivery via `bun run handoff`
 - **Modern tooling** — Bun, Biome, and Turbopack
+
+## 3D Model Viewer Features
+
+The project includes a robust, modular, and optimized 3D Model Viewer component (`@/components/model-viewer`) built using React Three Fiber, `@react-three/drei`, GSAP, and Zustand.
+
+- **Multiple Model Loading**: Load and render multiple `STL`, `GLTF`, and `GLB` files simultaneously, with auto-assigned curated color themes.
+- **Drag-and-Drop Viewport**: Drag files directly from your desktop into the viewport to import.
+- **Outline & Highlight Helpers**: Highlight selection boundaries using custom portal outlines.
+- **Camera View Presets**: Instantly snap or transition smoothly to Front, Back, Left, Right, Top, Bottom, and Isometric views targeting the active model or scene bounds.
+- **Interactive Pivot Controls**: Position and manipulate default or uploaded models dynamically in the 3D workspace.
+- **Helpers & Gizmos**: Features infinite grid helpers, and coordinate axis orientation view cubes/gizmos.
+- **Modular Component Architecture**: Separated into clear folders for UI overlay elements (`Sidebar`, `ControlPanel`, `DropOverlay`) and WebGL logic (`Scene`, `CameraRig`, `ModelRenderer`, `SceneExtras`, `SceneLighting`, `useModelLoader` hook).
+- **Zustand State Store**: Synchronized state management for mesh selection, visibility, coloring, camera triggers, and resets.
 
 ## Quick Start
 

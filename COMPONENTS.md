@@ -11,25 +11,7 @@ Quick-reference for every component, hook, and utility in the YHN starter kit.
 
 | Component | Import | Type |
 |-----------|--------|------|
-| ErrorView | `@/components/ui/error-view` | Client |
-| Image | `@/components/ui/image` | Client |
-| Link | `@/components/ui/link` | Client |
-| ModelViewer | `@/components/ui/model-viewer` | Client |
 | RealViewport | `@/components/ui/real-viewport` | Client |
-| ScrollRestoration | `@/components/ui/scroll-restoration` | Client |
-| Scrollbar | `@/components/ui/scrollbar` | Client |
-
----
-
-## Layout Components
-
-| Component | Import | Type |
-|-----------|--------|------|
-| Footer | `@/components/layout/footer` | Server |
-| Header | `@/components/layout/header` | Client |
-| Lenis | `@/components/layout/lenis` | Client |
-| Theme | `@/components/layout/theme` | Client |
-| Wrapper | `@/components/layout/wrapper` | Client |
 
 ---
 
@@ -38,7 +20,6 @@ Quick-reference for every component, hook, and utility in the YHN starter kit.
 | Component | Import | Type |
 |-----------|--------|------|
 | Gsap | `@/components/effects/gsap` | Client |
-| SplitText | `@/components/effects/split-text` | Client |
 
 ---
 
@@ -46,9 +27,7 @@ Quick-reference for every component, hook, and utility in the YHN starter kit.
 
 | Hook | Import | Signature |
 |------|--------|-----------|
-| useDeviceDetection | `@/hooks/use-device-detection` | `()` |
 | usePrefetch | `@/hooks/use-prefetch` | `(href: Route | null | undefined, options?: IntersectionObserverInit)` |
-| usePreloader | `@/hooks/use-preloader` | `({ ready, onComplete }: UsePreloaderProps)` |
 | useReveal | `@/hooks/use-reveal` | `({ threshold = 0, rootMargin = '0px 0px -25% 0px', once = true, }: UseRevealOptions = {})` |
 | useOnlineStatus | `@/hooks/use-sync-external` | `() => boolean` |
 | usePreferredColorScheme | `@/hooks/use-sync-external` | `() => 'light' | 'dark'` |
@@ -111,19 +90,6 @@ Quick-reference for every component, hook, and utility in the YHN starter kit.
 | Export | Signature |
 |--------|-----------|
 | coreEnvSchema | `ZodObject<{ NEXT_PUBLIC_BASE_URL: ZodOptional<ZodString>; }, $strip>` |
-
----
-
-## WebGL Components
-
-| Component | Import | Type |
-|-----------|--------|------|
-| CanvasImage | `@/webgl/components/canvas-image` | Client |
-| Canvas | `@/webgl/components/canvas` | Client |
-| GlobalCanvas | `@/webgl/components/global-canvas` | Client |
-| Postprocessing | `@/webgl/components/postprocessing` | Server |
-| Raf | `@/webgl/components/raf` | Server |
-| Tunnel | `@/webgl/components/tunnel` | Client |
 
 ---
 
