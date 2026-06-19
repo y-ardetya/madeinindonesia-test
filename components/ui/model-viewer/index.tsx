@@ -2,28 +2,12 @@
 
 import { Canvas } from '@react-three/fiber'
 import cn from 'clsx'
-import { Suspense, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import s from './model-viewer.module.css'
+import { useModelViewerStore } from './model-viewer-store'
 import { Scene } from './scene'
 
-// Curated colors for the palette
-const COLOR_PALETTE = [
-  { name: 'Ochre', hex: '#F2CC8F' },
-  { name: 'Terracotta', hex: '#E07A5F' },
-  { name: 'Sage', hex: '#81B29A' },
-  { name: 'Indigo', hex: '#3D5A80' },
-  { name: 'Rose', hex: '#F38375' },
-  { name: 'Charcoal', hex: '#222222' },
-]
-
-export interface LoadedModel {
-  id: string
-  name: string
-  url?: string
-  type: 'glb' | 'gltf' | 'stl' | 'cube'
-  visible: boolean
-  color: string
-}
+// ─── Icons ────────────────────────────────────────────────────────────────────
 
 const EyeIcon = () => (
   <svg
@@ -101,117 +85,110 @@ const UploadIcon = () => (
   </svg>
 )
 
-export function ModelViewer() {
-  const [models, setModels] = useState<LoadedModel[]>([
-    {
-      id: 'default-cube',
-      name: 'Default Cube',
-      type: 'cube',
-      visible: true,
-      color: '#81B29A',
-    },
-  ])
-  const [cameraView, setCameraView] = useState<
-    'front' | 'back' | 'left' | 'right' | 'top' | 'bottom' | 'isometric' | null
-  >(null)
-  const [fitTrigger, setFitTrigger] = useState(0)
-  const [resetTrigger, setResetTrigger] = useState(0)
+// ─── Main Component ───────────────────────────────────────────────────────────
 
+export function ModelViewer() {
+  const models = useModelViewerStore((s) => s.models)
+  const selectedId = useModelViewerStore((s) => s.selectedId)
+  const cameraView = useModelViewerStore((s) => s.cameraView)
+  const addModels = useModelViewerStore((s) => s.addModels)
+  const removeModel = useModelViewerStore((s) => s.removeModel)
+  const toggleVisibility = useModelViewerStore((s) => s.toggleVisibility)
+  const setColor = useModelViewerStore((s) => s.setColor)
+  const setSelectedId = useModelViewerStore((s) => s.setSelectedId)
+  const setCameraView = useModelViewerStore((s) => s.setCameraView)
+  const triggerFit = useModelViewerStore((s) => s.triggerFit)
+  const triggerReset = useModelViewerStore((s) => s.triggerReset)
+
+  // Drag-and-drop state
+  const [isDragging, setIsDragging] = useState(false)
+  const dragCounter = useRef(0)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // ─── File input handler ───────────────────────────────────────────────────
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return
-    const files = Array.from(e.target.files)
-    const newModels: LoadedModel[] = []
-
-    files.forEach((file) => {
-      const ext = file.name.split('.').pop()?.toLowerCase()
-      if (ext === 'glb' || ext === 'gltf' || ext === 'stl') {
-        const url = URL.createObjectURL(file)
-        const id = `${file.name}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
-        const colorIndex =
-          (models.length + newModels.length) % COLOR_PALETTE.length
-        const color = COLOR_PALETTE[colorIndex]?.hex || '#E07A5F'
-
-        newModels.push({
-          id,
-          name: file.name,
-          url,
-          type: ext as 'glb' | 'gltf' | 'stl',
-          visible: true,
-          color,
-        })
-      }
-    })
-
-    if (newModels.length > 0) {
-      setModels((prev) => [...prev, ...newModels])
-      setFitTrigger((prev) => prev + 1)
-    }
+    addModels(Array.from(e.target.files))
+    // Reset input so same file can be re-uploaded
+    e.target.value = ''
   }
 
-  const toggleVisibility = (id: string) => {
-    setModels((prev) =>
-      prev.map((model) =>
-        model.id === id ? { ...model, visible: !model.visible } : model
-      )
-    )
-    setFitTrigger((prev) => prev + 1)
+  // ─── Drag-and-drop handlers ───────────────────────────────────────────────
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounter.current += 1
+    setIsDragging(true)
   }
 
-  const deleteModel = (id: string) => {
-    setModels((prev) => {
-      const target = prev.find((m) => m.id === id)
-      if (target?.url) {
-        URL.revokeObjectURL(target.url)
-      }
-      return prev.filter((model) => model.id !== id)
-    })
-    setFitTrigger((prev) => prev + 1)
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounter.current -= 1
+    if (dragCounter.current === 0) setIsDragging(false)
   }
 
-  const handleColorChange = (id: string, color: string) => {
-    setModels((prev) =>
-      prev.map((model) => (model.id === id ? { ...model, color } : model))
-    )
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
   }
 
-  const handleResetCamera = () => {
-    setCameraView('isometric')
-    setResetTrigger((prev) => prev + 1)
-  }
-
-  const handleFitToView = () => {
-    setFitTrigger((prev) => prev + 1)
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounter.current = 0
+    setIsDragging(false)
+    const files = Array.from(e.dataTransfer.files)
+    addModels(files)
   }
 
   return (
-    <div className={s.container}>
+    // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop container
+    <div
+      className={cn(s.container, isDragging && s.isDragging)}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {/* 3D Canvas */}
       <Canvas
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+        }}
         gl={{ antialias: true, alpha: false }}
         shadows
         dpr={[1, 2]}
       >
         <Suspense fallback={null}>
-          <Scene
-            models={models}
-            cameraView={cameraView}
-            fitTrigger={fitTrigger}
-            resetTrigger={resetTrigger}
-            onCameraViewReset={() => setCameraView(null)}
-          />
+          <Scene />
         </Suspense>
       </Canvas>
 
+      {/* Drag overlay hint */}
+      {isDragging && (
+        <div className={s.dropOverlay} aria-hidden="true">
+          <div className={s.dropHint}>
+            <UploadIcon />
+            <span>Drop 3D files here</span>
+            <span className={s.dropSub}>GLTF · GLB · STL</span>
+          </div>
+        </div>
+      )}
+
       <div className={s.frameOverlay} />
 
+      {/* Sidebar */}
       <div className={s.sidebar}>
         <h2 className={s.sidebarTitle}>3D Models</h2>
 
         <label className={s.uploadArea}>
           <UploadIcon />
           <span className={s.uploadText}>Upload 3D Files</span>
-          <span className={s.uploadSubtext}>Supports GLTF, GLB, STL</span>
+          <span className={s.uploadSubtext}>
+            or drag & drop · GLTF, GLB, STL
+          </span>
           <input
+            ref={fileInputRef}
             type="file"
             multiple
             accept=".gltf,.glb,.stl"
@@ -225,10 +202,32 @@ export function ModelViewer() {
             <div className={s.emptyState}>No models loaded</div>
           ) : (
             models.map((model) => (
-              <div key={model.id} className={s.modelItem}>
+              // biome-ignore lint/a11y/useSemanticElements: custom styled container behaves as button
+              <div
+                key={model.id}
+                className={cn(
+                  s.modelItem,
+                  selectedId === model.id && s.isSelected
+                )}
+                onClick={() =>
+                  setSelectedId(model.id === selectedId ? null : model.id)
+                }
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setSelectedId(model.id === selectedId ? null : model.id)
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-pressed={selectedId === model.id}
+                aria-label={`Select ${model.name}`}
+              >
                 <button
                   type="button"
-                  onClick={() => toggleVisibility(model.id)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleVisibility(model.id)
+                  }}
                   className={s.visibilityBtn}
                   title={model.visible ? 'Hide Model' : 'Show Model'}
                   aria-label={model.visible ? 'Hide model' : 'Show model'}
@@ -249,9 +248,8 @@ export function ModelViewer() {
                     <input
                       type="color"
                       value={model.color}
-                      onChange={(e) =>
-                        handleColorChange(model.id, e.target.value)
-                      }
+                      onChange={(e) => setColor(model.id, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
                       className={s.colorInput}
                       aria-label={`Change color for ${model.name}`}
                     />
@@ -259,7 +257,10 @@ export function ModelViewer() {
 
                   <button
                     type="button"
-                    onClick={() => deleteModel(model.id)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeModel(model.id)
+                    }}
                     className={s.deleteBtn}
                     title="Remove Model"
                     aria-label="Remove model"
@@ -273,54 +274,68 @@ export function ModelViewer() {
         </div>
       </div>
 
+      {/* Bottom control panel */}
       <div className={s.controlPanel}>
-        <div className={s.controlGroup}>
-          <span className={s.groupLabel}>Camera Views</span>
-          <div className={s.btnGroup}>
-            {(
-              [
-                'front',
-                'back',
-                'left',
-                'right',
-                'top',
-                'bottom',
-                'isometric',
-              ] as const
-            ).map((view) => (
-              <button
-                key={view}
-                type="button"
-                className={cn(s.btn, cameraView === view && s.isActive)}
-                onClick={() => setCameraView(view)}
-              >
-                {view.charAt(0).toUpperCase() + view.slice(1)}
-              </button>
-            ))}
+        {/* Active object name chip */}
+        {selectedId && (
+          <div className={s.activeObjectChip}>
+            <span className={s.activeObjectDot} />
+            <span className={s.activeObjectName}>
+              {models.find((m) => m.id === selectedId)?.name ?? 'Object'}
+            </span>
           </div>
-        </div>
+        )}
 
-        <div className={s.controlGroup}>
-          <span className={s.groupLabel}>Actions</span>
-          <div className={s.btnGroup}>
-            <button
-              type="button"
-              className={s.btn}
-              onClick={handleFitToView}
-              title="Fit entire scene to view"
-            >
-              Fit View
-            </button>
-            <button
-              type="button"
-              className={s.btn}
-              onClick={handleResetCamera}
-              title="Reset camera to isometric view"
-            >
-              Reset Camera
-            </button>
+        <div className={s.controlRow}>
+          <div className={s.controlGroup}>
+            <span className={s.groupLabel}>Camera Views</span>
+            <div className={s.btnGroup}>
+              {(
+                [
+                  'front',
+                  'back',
+                  'left',
+                  'right',
+                  'top',
+                  'bottom',
+                  'isometric',
+                ] as const
+              ).map((view) => (
+                <button
+                  key={view}
+                  type="button"
+                  className={cn(s.btn, cameraView === view && s.isActive)}
+                  onClick={() => setCameraView(view)}
+                >
+                  {view.charAt(0).toUpperCase() + view.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className={s.controlGroup}>
+            <span className={s.groupLabel}>Actions</span>
+            <div className={s.btnGroup}>
+              <button
+                type="button"
+                className={s.btn}
+                onClick={triggerFit}
+                title="Fit entire scene to view"
+              >
+                Fit View
+              </button>
+              <button
+                type="button"
+                className={s.btn}
+                onClick={triggerReset}
+                title="Reset camera to initial position"
+              >
+                Reset Camera
+              </button>
+            </div>
           </div>
         </div>
+        {/* end controlRow */}
       </div>
     </div>
   )

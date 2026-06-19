@@ -1,230 +1,203 @@
 'use client'
 
 import {
-  Center,
   GizmoHelper,
   GizmoViewport,
+  Grid,
   OrbitControls,
+  Outlines,
   PerspectiveCamera,
+  PivotControls,
 } from '@react-three/drei'
-import { useFrame, useThree } from '@react-three/fiber'
+import { createPortal, useFrame, useThree } from '@react-three/fiber'
+import { gsap } from 'gsap'
+import { CustomEase } from 'gsap/CustomEase'
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three/webgpu'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { GLTFLoader, STLLoader } from 'three-stdlib'
-import type { LoadedModel } from './index'
+import { useModelViewerStore } from './model-viewer-store'
 
-export interface SceneProps {
-  models: LoadedModel[]
-  cameraView:
-  | 'front'
-  | 'back'
-  | 'left'
-  | 'right'
-  | 'top'
-  | 'bottom'
-  | 'isometric'
-  | null
-  fitTrigger: number
-  resetTrigger: number
-  onCameraViewReset: () => void
-}
+// Register GSAP custom eases once (module-level, runs once)
+gsap.registerPlugin(CustomEase)
+CustomEase.create('osmo-ease', '0.625, 0.05, 0, 1')
 
 interface LoadedObject {
   id: string
   object: THREE.Object3D
+  /** World-space bounding box center, updated after load */
+  center: THREE.Vector3
   url: string
 }
 
-export function Scene({
-  models,
-  cameraView,
-  fitTrigger,
-  onCameraViewReset,
-}: SceneProps) {
+export function Scene() {
   const { camera } = useThree()
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
-  const groupRef = useRef<THREE.Group>(null)
+  const defaultCubeRef = useRef<THREE.Mesh>(null)
+
+  const models = useModelViewerStore((s) => s.models)
+  const selectedId = useModelViewerStore((s) => s.selectedId)
+  const cameraView = useModelViewerStore((s) => s.cameraView)
+  const fitTrigger = useModelViewerStore((s) => s.fitTrigger)
+  const resetTrigger = useModelViewerStore((s) => s.resetTrigger)
+  const initialPose = useModelViewerStore((s) => s.initialPose)
+  const setCameraView = useModelViewerStore((s) => s.setCameraView)
+  const setSelectedId = useModelViewerStore((s) => s.setSelectedId)
+  const setInitialPose = useModelViewerStore((s) => s.setInitialPose)
 
   const [loadedObjects, setLoadedObjects] = useState<LoadedObject[]>([])
 
-  // Interpolation transition reference
-  const transitionRef = useRef<{
-    active: boolean
-    startPos: THREE.Vector3
-    endPos: THREE.Vector3
-    startTarget: THREE.Vector3
-    endTarget: THREE.Vector3
-    startUp: THREE.Vector3
-    endUp: THREE.Vector3
-    startTime: number
-    duration: number
-  } | null>(null)
+  // GSAP tween proxy — avoids React re-renders during animation
+  const tweenProxy = useRef({
+    posX: 0,
+    posY: 0,
+    posZ: 0,
+    tgtX: 0,
+    tgtY: 0,
+    tgtZ: 0,
+    upX: 0,
+    upY: 1,
+    upZ: 0,
+  })
+  const activeTween = useRef<gsap.core.Tween | null>(null)
+  const isTweening = useRef(false)
 
-  // Get combined bounding box of all visible loaded models
-  const getCombinedBoundingBox = () => {
+  // ─── Bounding box: selected object OR all visible objects ──────────────────
+  const getBoundingBox = (forSelected = false): THREE.Box3 => {
     const box = new THREE.Box3()
-    let hasVisibleObjects = false
+    let has = false
 
-    models.forEach((model) => {
-      if (model.visible) {
-        if (model.type === 'cube') {
+    const expandByLoadedObj = (obj: LoadedObject) => {
+      obj.object.updateMatrixWorld(true)
+      const localBox = new THREE.Box3().setFromObject(obj.object)
+      box.union(localBox)
+    }
+
+    // If focusing on a specific selected object
+    if (forSelected && selectedId) {
+      if (selectedId === 'default-cube') {
+        if (defaultCubeRef.current) {
+          defaultCubeRef.current.updateMatrixWorld(true)
+          box.setFromObject(defaultCubeRef.current)
+          has = true
+        } else {
           box.expandByPoint(new THREE.Vector3(-0.5, -0.5, -0.5))
           box.expandByPoint(new THREE.Vector3(0.5, 0.5, 0.5))
-          hasVisibleObjects = true
+          has = true
+        }
+      } else {
+        const obj = loadedObjects.find((o) => o.id === selectedId)
+        if (obj) {
+          expandByLoadedObj(obj)
+          has = true
+        }
+      }
+    }
+
+    // Fall back to all visible objects
+    if (!has) {
+      for (const model of models) {
+        if (!model.visible) continue
+        if (model.type === 'cube') {
+          if (defaultCubeRef.current) {
+            defaultCubeRef.current.updateMatrixWorld(true)
+            const tempBox = new THREE.Box3().setFromObject(
+              defaultCubeRef.current
+            )
+            box.union(tempBox)
+            has = true
+          } else {
+            box.expandByPoint(new THREE.Vector3(-0.5, -0.5, -0.5))
+            box.expandByPoint(new THREE.Vector3(0.5, 0.5, 0.5))
+            has = true
+          }
         } else {
           const obj = loadedObjects.find((o) => o.id === model.id)
           if (obj) {
-            box.expandByObject(obj.object)
-            hasVisibleObjects = true
+            expandByLoadedObj(obj)
+            has = true
           }
         }
       }
-    })
-
-    if (!hasVisibleObjects) {
-      box.set(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1))
     }
+
+    if (!has) box.set(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1))
     return box
   }
 
-  // Load / unload models dynamically
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Load only when models list configuration changes
-  useEffect(() => {
-    const modelIds = new Set(models.map((m) => m.id))
-    const objectsToDelete = loadedObjects.filter((obj) => !modelIds.has(obj.id))
-
-    // Cleanup GPU resources of deleted models
-    objectsToDelete.forEach((obj) => {
-      obj.object.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          const mesh = child as THREE.Mesh
-          if (Array.isArray(mesh.material)) {
-            mesh.material.forEach((m) => {
-              m.dispose()
-            })
-          } else if (mesh.material) {
-            mesh.material.dispose()
-          }
-          if (mesh.geometry) {
-            mesh.geometry.dispose()
-          }
-        }
-      })
-    })
-
-    const updatedObjects = loadedObjects.filter((obj) => modelIds.has(obj.id))
-
-    const loadedIds = new Set(loadedObjects.map((obj) => obj.id))
-    const modelsToLoad = models.filter(
-      (m) => m.type !== 'cube' && !loadedIds.has(m.id)
-    )
-
-    if (modelsToLoad.length === 0) {
-      setLoadedObjects(updatedObjects)
-      return
+  // ─── Camera tween helper ───────────────────────────────────────────────────
+  const animateCamera = (
+    endPos: THREE.Vector3,
+    endTarget: THREE.Vector3,
+    endUp: THREE.Vector3,
+    onComplete?: () => void
+  ) => {
+    if (activeTween.current) activeTween.current.kill()
+    if (controlsRef.current) {
+      controlsRef.current.enableDamping = false
     }
-
-    const loadPromises = modelsToLoad.map((model) => {
-      return new Promise<LoadedObject>((resolve) => {
-        if (model.type === 'stl') {
-          const loader = new STLLoader()
-          loader.load(
-            model.url!,
-            (geometry) => {
-              geometry.computeVertexNormals()
-              const material = new THREE.MeshStandardMaterial({
-                color: new THREE.Color(model.color),
-                roughness: 0.4,
-                metalness: 0.2,
-              })
-              const mesh = new THREE.Mesh(geometry, material)
-              mesh.castShadow = true
-              mesh.receiveShadow = true
-              resolve({ id: model.id, object: mesh, url: model.url! })
-            },
-            undefined,
-            (err) => {
-              console.error(`Failed to load STL model ${model.name}:`, err)
-              resolve({
-                id: model.id,
-                object: new THREE.Group(),
-                url: model.url!,
-              })
-            }
-          )
-        } else {
-          const loader = new GLTFLoader()
-          loader.load(
-            model.url!,
-            (gltf) => {
-              const sceneObj = gltf.scene
-              sceneObj.traverse((child) => {
-                if ((child as THREE.Mesh).isMesh) {
-                  const mesh = child as THREE.Mesh
-                  mesh.castShadow = true
-                  mesh.receiveShadow = true
-                }
-              })
-              resolve({ id: model.id, object: sceneObj, url: model.url! })
-            },
-            undefined,
-            (err) => {
-              console.error(`Failed to load GLTF/GLB model ${model.name}:`, err)
-              resolve({
-                id: model.id,
-                object: new THREE.Group(),
-                url: model.url!,
-              })
-            }
-          )
+    const proxy = tweenProxy.current
+    proxy.posX = camera.position.x
+    proxy.posY = camera.position.y
+    proxy.posZ = camera.position.z
+    proxy.tgtX = controlsRef.current?.target.x ?? 0
+    proxy.tgtY = controlsRef.current?.target.y ?? 0
+    proxy.tgtZ = controlsRef.current?.target.z ?? 0
+    proxy.upX = camera.up.x
+    proxy.upY = camera.up.y
+    proxy.upZ = camera.up.z
+    isTweening.current = true
+    activeTween.current = gsap.to(proxy, {
+      posX: endPos.x,
+      posY: endPos.y,
+      posZ: endPos.z,
+      tgtX: endTarget.x,
+      tgtY: endTarget.y,
+      tgtZ: endTarget.z,
+      upX: endUp.x,
+      upY: endUp.y,
+      upZ: endUp.z,
+      duration: 1.0,
+      ease: 'osmo-ease',
+      onComplete: () => {
+        isTweening.current = false
+        if (controlsRef.current) {
+          controlsRef.current.enableDamping = true
         }
-      })
+        onComplete?.()
+      },
     })
+  }
 
-    Promise.all(loadPromises).then((newObjs) => {
-      setLoadedObjects([...updatedObjects, ...newObjs])
-    })
-  }, [models])
+  // Apply tween proxy to camera each frame
+  useFrame(() => {
+    if (!isTweening.current) return
+    const p = tweenProxy.current
+    camera.position.set(p.posX, p.posY, p.posZ)
+    camera.up.set(p.upX, p.upY, p.upZ)
+    if (controlsRef.current) {
+      controlsRef.current.target.set(p.tgtX, p.tgtY, p.tgtZ)
+      controlsRef.current.update()
+    }
+  })
 
-  // Update object visibility and color changes
-  useEffect(() => {
-    loadedObjects.forEach((obj) => {
-      const model = models.find((m) => m.id === obj.id)
-      if (!model) return
-
-      obj.object.visible = model.visible
-
-      obj.object.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          const mesh = child as THREE.Mesh
-          if (mesh.material && 'color' in mesh.material) {
-            const stdMaterial = mesh.material as THREE.MeshStandardMaterial
-            stdMaterial.color.set(new THREE.Color(model.color))
-          }
-        }
-      })
-    })
-  }, [models, loadedObjects])
-
-  // Handle predefined camera view transitions
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Transition camera on cameraView triggers
+  // ─── Camera view presets ── focuses on selected object if one is selected ──
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
   useEffect(() => {
     if (!cameraView) return
 
-    const box = getCombinedBoundingBox()
+    const box = getBoundingBox(true) // focus selected if available
     const center = new THREE.Vector3()
     box.getCenter(center)
     const size = new THREE.Vector3()
     box.getSize(size)
     const maxDim = Math.max(size.x, size.y, size.z)
-
     const fovRad = (camera as THREE.PerspectiveCamera).fov * (Math.PI / 180)
     let distance = maxDim / (2 * Math.tan(fovRad / 2))
-    distance *= 1.35 // padded distance
+    distance *= 3.0
 
     const dir = new THREE.Vector3()
-    const targetUp = new THREE.Vector3(0, 1, 0)
+    const up = new THREE.Vector3(0, 1, 0)
 
     switch (cameraView) {
       case 'front':
@@ -241,175 +214,248 @@ export function Scene({
         break
       case 'top':
         dir.set(0, 1, 0)
-        targetUp.set(0, 0, -1)
+        up.set(0, 0, -1)
         break
       case 'bottom':
         dir.set(0, -1, 0)
-        targetUp.set(0, 0, 1)
+        up.set(0, 0, 1)
         break
       case 'isometric':
         dir.set(1, 1, 1).normalize()
         break
     }
 
-    const targetPos = center.clone().add(dir.multiplyScalar(distance))
+    animateCamera(
+      center.clone().add(dir.multiplyScalar(distance)),
+      center.clone(),
+      up,
+      () => setCameraView(null)
+    )
+  }, [cameraView, loadedObjects, selectedId, models, camera, setCameraView])
 
-    transitionRef.current = {
-      active: true,
-      startPos: camera.position.clone(),
-      endPos: targetPos,
-      startTarget: controlsRef.current
-        ? controlsRef.current.target.clone()
-        : new THREE.Vector3(),
-      endTarget: center.clone(),
-      startUp: camera.up.clone(),
-      endUp: targetUp,
-      startTime: performance.now(),
-      duration: 800,
-    }
-  }, [cameraView, loadedObjects])
-
-  // Handle fit view triggers
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Fit view on fitTrigger triggers
+  // ─── Fit-to-view trigger ───────────────────────────────────────────────────
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
   useEffect(() => {
     if (fitTrigger === 0) return
-
-    const box = getCombinedBoundingBox()
+    const box = getBoundingBox(false)
     const center = new THREE.Vector3()
     box.getCenter(center)
     const size = new THREE.Vector3()
     box.getSize(size)
     const maxDim = Math.max(size.x, size.y, size.z)
-
     const fovRad = (camera as THREE.PerspectiveCamera).fov * (Math.PI / 180)
     let distance = maxDim / (2 * Math.tan(fovRad / 2))
-    distance *= 1.35
+    distance *= 3.0
+    const dir = new THREE.Vector3()
+    camera.getWorldDirection(dir)
+    animateCamera(
+      center
+        .clone()
+        .add(dir.clone().negate().normalize().multiplyScalar(distance)),
+      center.clone(),
+      camera.up.clone()
+    )
+  }, [fitTrigger, loadedObjects, models, camera])
 
-    const currentDir = new THREE.Vector3()
-    camera.getWorldDirection(currentDir)
-    const dirFromCenter = currentDir.clone().negate().normalize()
-    const targetPos = center.clone().add(dirFromCenter.multiplyScalar(distance))
-
-    transitionRef.current = {
-      active: true,
-      startPos: camera.position.clone(),
-      endPos: targetPos,
-      startTarget: controlsRef.current
-        ? controlsRef.current.target.clone()
-        : new THREE.Vector3(),
-      endTarget: center.clone(),
-      startUp: camera.up.clone(),
-      endUp: camera.up.clone(),
-      startTime: performance.now(),
-      duration: 800,
+  // ─── Reset Camera → replay initial pose ───────────────────────────────────
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
+  useEffect(() => {
+    if (resetTrigger === 0) return
+    const targetPose = initialPose || {
+      posX: 2,
+      posY: 2,
+      posZ: 3,
+      tgtX: 0,
+      tgtY: 0,
+      tgtZ: 0,
     }
-  }, [fitTrigger, loadedObjects])
+    animateCamera(
+      new THREE.Vector3(targetPose.posX, targetPose.posY, targetPose.posZ),
+      new THREE.Vector3(targetPose.tgtX, targetPose.tgtY, targetPose.tgtZ),
+      new THREE.Vector3(0, 1, 0)
+    )
+  }, [resetTrigger, initialPose])
 
-  // Direct layout fitting for initial load
-  const fitSceneDirectly = () => {
-    const box = getCombinedBoundingBox()
-    const center = new THREE.Vector3()
-    box.getCenter(center)
-    const size = new THREE.Vector3()
-    box.getSize(size)
-    const maxDim = Math.max(size.x, size.y, size.z)
-
-    const fovRad = (camera as THREE.PerspectiveCamera).fov * (Math.PI / 180)
-    let distance = maxDim / (2 * Math.tan(fovRad / 2))
-    distance *= 1.35
-
-    const targetPos = center
-      .clone()
-      .add(new THREE.Vector3(1, 1, 1).normalize().multiplyScalar(distance))
-
-    camera.position.copy(targetPos)
-    camera.up.set(0, 1, 0)
-    if (controlsRef.current) {
-      controlsRef.current.target.copy(center)
-      controlsRef.current.update()
-    }
-  }
-
-  const initialFitRef = useRef(false)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: initial load fitting
+  // ─── Initial camera fit (runs once when first content is ready) ────────────
+  const didInitialFit = useRef(false)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
   useEffect(() => {
     const hasCube = models.some((m) => m.type === 'cube' && m.visible)
     const hasLoaded = loadedObjects.length > 0
-    let timer: ReturnType<typeof setTimeout> | undefined
-    if ((hasCube || hasLoaded) && !initialFitRef.current) {
-      initialFitRef.current = true
-      timer = setTimeout(() => {
-        fitSceneDirectly()
-        console.log('📷 Camera fitted to scene bounds initially.')
-      }, 50)
+    if ((hasCube || hasLoaded) && !didInitialFit.current) {
+      didInitialFit.current = true
+      const timer = setTimeout(() => {
+        const box = getBoundingBox(false)
+        const center = new THREE.Vector3()
+        box.getCenter(center)
+        const size = new THREE.Vector3()
+        box.getSize(size)
+        const maxDim = Math.max(size.x, size.y, size.z)
+        const fovRad = (camera as THREE.PerspectiveCamera).fov * (Math.PI / 180)
+        let distance = maxDim / (2 * Math.tan(fovRad / 2))
+        distance *= 3.0
+        const targetPos = center
+          .clone()
+          .add(new THREE.Vector3(1, 1, 1).normalize().multiplyScalar(distance))
+        camera.position.copy(targetPos)
+        camera.up.set(0, 1, 0)
+        if (controlsRef.current) {
+          controlsRef.current.target.copy(center)
+          controlsRef.current.update()
+        }
+        // Snapshot this pose for Reset Camera
+        setInitialPose({
+          posX: targetPos.x,
+          posY: targetPos.y,
+          posZ: targetPos.z,
+          tgtX: center.x,
+          tgtY: center.y,
+          tgtZ: center.z,
+        })
+      }, 60)
+      return () => clearTimeout(timer)
     }
-    return () => {
-      if (timer) {
-        clearTimeout(timer)
-      }
-    }
-  }, [loadedObjects, models])
+    return undefined
+  }, [loadedObjects, models, camera, setInitialPose])
 
-  // Diagnostic logging to track loaded and rendered objects in the scene graph
+  // ─── Load / unload models ─────────────────────────────────────────────────
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
   useEffect(() => {
-    console.log('📦 Models configuration:', models)
-    console.log('WebGL loaded objects cache:', loadedObjects)
-    if (groupRef.current) {
-      const renderedObjects: Array<{
-        id: string
-        name: string
-        type: string
-        visible: boolean
-      }> = []
-      groupRef.current.traverse((child) => {
+    const modelIds = new Set(models.map((m) => m.id))
+    const toDelete = loadedObjects.filter((o) => !modelIds.has(o.id))
+
+    for (const obj of toDelete) {
+      obj.object.traverse((child) => {
         if ((child as THREE.Mesh).isMesh) {
           const mesh = child as THREE.Mesh
-          renderedObjects.push({
-            id: mesh.uuid,
-            name: mesh.name || child.parent?.name || 'Mesh',
-            type: mesh.geometry ? mesh.geometry.type : 'Unknown',
-            visible: mesh.visible,
-          })
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach((m) => {
+              m.dispose()
+            })
+          } else {
+            mesh.material?.dispose()
+          }
+          mesh.geometry?.dispose()
         }
       })
-      console.log('🌲 Rendered meshes in 3D group:', renderedObjects)
+    }
+
+    const surviving = loadedObjects.filter((o) => modelIds.has(o.id))
+    const existingIds = new Set(surviving.map((o) => o.id))
+    const toLoad = models.filter(
+      (m) => m.type !== 'cube' && !existingIds.has(m.id)
+    )
+
+    if (toLoad.length === 0) {
+      setLoadedObjects(surviving)
+      return
+    }
+
+    const promises = toLoad.map(
+      (model) =>
+        new Promise<LoadedObject>((resolve) => {
+          const onLoaded = (object: THREE.Object3D) => {
+            // Compute the bounding-box center BEFORE adding to scene
+            const box = new THREE.Box3().setFromObject(object)
+            const center = new THREE.Vector3()
+            box.getCenter(center)
+
+            // Shift the object so its visual center lands at local [0,0,0].
+            // PivotControls with anchor=[0,0,0] will then sit exactly on the
+            // mesh center, regardless of where the geometry's own origin is.
+            object.position.sub(center)
+
+            // `center` becomes the group's world position so the model
+            // still appears at the correct location in the scene.
+            resolve({ id: model.id, object, center, url: model.url! })
+          }
+
+          if (model.type === 'stl') {
+            const loader = new STLLoader()
+            loader.load(
+              model.url!,
+              (geometry) => {
+                geometry.computeVertexNormals()
+                const material = new THREE.MeshStandardMaterial({
+                  color: new THREE.Color(model.color),
+                  roughness: 0.4,
+                  metalness: 0.2,
+                })
+                const mesh = new THREE.Mesh(geometry, material)
+                mesh.castShadow = true
+                mesh.receiveShadow = true
+                onLoaded(mesh)
+              },
+              undefined,
+              (err) => {
+                console.error(`Failed to load STL ${model.name}:`, err)
+                resolve({
+                  id: model.id,
+                  object: new THREE.Group(),
+                  center: new THREE.Vector3(),
+                  url: model.url!,
+                })
+              }
+            )
+          } else {
+            const loader = new GLTFLoader()
+            loader.load(
+              model.url!,
+              (gltf) => {
+                gltf.scene.traverse((child) => {
+                  if ((child as THREE.Mesh).isMesh) {
+                    const mesh = child as THREE.Mesh
+                    mesh.castShadow = true
+                    mesh.receiveShadow = true
+                  }
+                })
+                onLoaded(gltf.scene)
+              },
+              undefined,
+              (err) => {
+                console.error(`Failed to load GLTF/GLB ${model.name}:`, err)
+                resolve({
+                  id: model.id,
+                  object: new THREE.Group(),
+                  center: new THREE.Vector3(),
+                  url: model.url!,
+                })
+              }
+            )
+          }
+        })
+    )
+
+    Promise.all(promises).then((newObjs) =>
+      setLoadedObjects([...surviving, ...newObjs])
+    )
+  }, [models])
+
+  // ─── Sync visibility & color ──────────────────────────────────────────────
+  useEffect(() => {
+    for (const obj of loadedObjects) {
+      const model = models.find((m) => m.id === obj.id)
+      if (!model) continue
+      obj.object.visible = model.visible
+      obj.object.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh
+          if (mesh.material && 'color' in mesh.material) {
+            ; (mesh.material as THREE.MeshStandardMaterial).color.set(
+              model.color
+            )
+          }
+        }
+      })
     }
   }, [models, loadedObjects])
 
-  // Process smooth transitions in frame loop
-  useFrame(() => {
-    if (transitionRef.current?.active) {
-      const t = transitionRef.current
-      const now = performance.now()
-      const elapsed = now - t.startTime
-      const progress = Math.min(1.0, elapsed / t.duration)
-
-      const ease = 1 - (1 - progress) ** 3 // easeOutCubic
-
-      camera.position.lerpVectors(t.startPos, t.endPos, ease)
-
-      if (controlsRef.current) {
-        controlsRef.current.target.lerpVectors(t.startTarget, t.endTarget, ease)
-      }
-
-      camera.up.lerpVectors(t.startUp, t.endUp, ease)
-
-      if (controlsRef.current) {
-        controlsRef.current.update()
-      }
-
-      if (progress >= 1.0) {
-        t.active = false
-        onCameraViewReset()
-      }
-    }
-  })
-
-  // Cleanup on unmount
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Cleanup resource on unmount
+  // ─── Cleanup on unmount ───────────────────────────────────────────────────
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
   useEffect(() => {
     return () => {
-      loadedObjects.forEach((obj) => {
+      activeTween.current?.kill()
+      for (const obj of loadedObjects) {
         obj.object.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
             const mesh = child as THREE.Mesh
@@ -417,15 +463,13 @@ export function Scene({
               mesh.material.forEach((m) => {
                 m.dispose()
               })
-            } else if (mesh.material) {
-              mesh.material.dispose()
+            } else {
+              mesh.material?.dispose()
             }
-            if (mesh.geometry) {
-              mesh.geometry.dispose()
-            }
+            mesh.geometry?.dispose()
           }
         })
-      })
+      }
     }
   }, [])
 
@@ -438,41 +482,110 @@ export function Scene({
         near={0.1}
         far={1000}
       />
-
       <color attach="background" args={['#0c0c0e']} />
 
       <ambientLight intensity={0.8} />
       <directionalLight position={[10, 15, 10]} intensity={1.5} castShadow />
       <directionalLight position={[-10, 15, -10]} intensity={0.5} />
 
-      <group ref={groupRef}>
+      {/* Models */}
+      <group>
         {models.map((model) => {
+          const isSelected = model.id === selectedId
+
           if (model.type === 'cube' && model.visible) {
             return (
-              <Center key={model.id}>
-                <mesh castShadow receiveShadow>
-                  <boxGeometry args={[1, 1, 1]} />
-                  <meshNormalMaterial />
-                </mesh>
-              </Center>
+              // biome-ignore lint/a11y/noStaticElementInteractions: react-three-fiber group is interactive in 3D scene
+              <group
+                key={model.id}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSelectedId(model.id)
+                }}
+              >
+                {/* PivotControls wraps the cube and centers itself at [0,0,0] */}
+                <PivotControls
+                  visible={isSelected}
+                  anchor={[0, 0, 0]}
+                  depthTest={false}
+                  lineWidth={2}
+                  axisColors={['#ff3653', '#00cf85', '#2fa1ff']}
+                  onDragStart={() => {
+                    if (controlsRef.current) controlsRef.current.enabled = false
+                  }}
+                  onDragEnd={() => {
+                    if (controlsRef.current) controlsRef.current.enabled = true
+                  }}
+                >
+                  <mesh ref={defaultCubeRef} castShadow receiveShadow>
+                    <boxGeometry args={[1, 1, 1]} />
+                    <meshNormalMaterial />
+                    {isSelected && (
+                      <Outlines
+                        thickness={3}
+                        color="#00cfff"
+                        transparent
+                        opacity={0.9}
+                      />
+                    )}
+                  </mesh>
+                </PivotControls>
+              </group>
             )
           }
 
           const obj = loadedObjects.find((o) => o.id === model.id)
           if (obj && model.visible) {
             return (
-              <Center key={model.id}>
-                <primitive object={obj.object} />
-              </Center>
+              // group sits at the original world-space center of the model.
+              // The object inside has been pre-shifted by -center during load,
+              // so its local origin IS its visual center.
+              // PivotControls anchor=[0,0,0] therefore lands exactly on the mesh.
+              // biome-ignore lint/a11y/noStaticElementInteractions: react-three-fiber group is interactive in 3D scene
+              <group
+                key={model.id}
+                position={[obj.center.x, obj.center.y, obj.center.z]}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSelectedId(model.id)
+                }}
+              >
+                <PivotControls
+                  visible={isSelected}
+                  anchor={[0, 0, 0]}
+                  depthTest={false}
+                  lineWidth={2}
+                  scale={3}
+                  axisColors={['#ff3653', '#00cf85', '#2fa1ff']}
+                  onDragStart={() => {
+                    if (controlsRef.current) controlsRef.current.enabled = false
+                  }}
+                  onDragEnd={() => {
+                    if (controlsRef.current) controlsRef.current.enabled = true
+                  }}
+                >
+                  <primitive object={obj.object} />
+                </PivotControls>
+                <ModelOutlines object={obj.object} isSelected={isSelected} />
+              </group>
             )
           }
           return null
         })}
       </group>
 
-      <gridHelper
-        args={[30, 30, '#5a5a65', '#2a2a30']}
+      <Grid
         position={[0, -0.6, 0]}
+        args={[30, 30]}
+        cellSize={1}
+        cellThickness={1}
+        cellColor="#2a2a30"
+        sectionSize={5}
+        sectionThickness={1.5}
+        sectionColor="#5a5a65"
+        fadeDistance={100}
+        fadeStrength={1.5}
+        infiniteGrid
       />
 
       <OrbitControls
@@ -481,10 +594,11 @@ export function Scene({
         enableDamping
         dampingFactor={0.08}
         onStart={() => {
-          if (transitionRef.current) {
-            transitionRef.current.active = false
+          if (isTweening.current) {
+            activeTween.current?.kill()
+            isTweening.current = false
           }
-          onCameraViewReset()
+          setCameraView(null)
         }}
       />
 
@@ -494,6 +608,39 @@ export function Scene({
           labelColor="white"
         />
       </GizmoHelper>
+    </>
+  )
+}
+
+function ModelOutlines({
+  object,
+  isSelected,
+}: {
+  object: THREE.Object3D
+  isSelected: boolean
+}) {
+  const [meshes, setMeshes] = useState<THREE.Mesh[]>([])
+
+  useEffect(() => {
+    const list: THREE.Mesh[] = []
+    object.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        list.push(child as THREE.Mesh)
+      }
+    })
+    setMeshes(list)
+  }, [object])
+
+  if (!isSelected) return null
+
+  return (
+    <>
+      {meshes.map((mesh) =>
+        createPortal(
+          <Outlines thickness={1.5} color="#ffffff" />,
+          mesh
+        )
+      )}
     </>
   )
 }
