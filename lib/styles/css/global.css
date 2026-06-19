@@ -71,7 +71,6 @@ body::after {
   z-index: 9999;
 }
 
-
 /* Selection styling */
 *::selection {
   background-color: var(--color-contrast);

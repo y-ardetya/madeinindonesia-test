@@ -2,7 +2,6 @@ import '@/lib/styles/css/index.css'
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { draftMode } from 'next/headers'
-import { ViewTransitions } from 'next-view-transitions'
 import type { PropsWithChildren } from 'react'
 import { ReactTempus } from 'tempus/react'
 import { AppShell } from '@/components/ui/app-shell'
@@ -38,24 +37,22 @@ export default async function Layout({ children }: PropsWithChildren) {
   const { isEnabled: isDraftMode } = await draftMode()
 
   return (
-    <ViewTransitions>
-      <html
-        lang="en"
-        dir="ltr"
-        className={fontsVariable}
-        data-theme="dark"
-        suppressHydrationWarning
-      >
-        <body>
-          <AppShell>
-            <RealViewport>{children}</RealViewport>
-          </AppShell>
+    <html
+      lang="en"
+      dir="ltr"
+      className={fontsVariable}
+      data-theme="dark"
+      suppressHydrationWarning
+    >
+      <body>
+        <AppShell>
+          <RealViewport>{children}</RealViewport>
+        </AppShell>
 
-          <OptionalFeatures />
-          <ReactTempus patch={!isDraftMode} />
-          <Analytics />
-        </body>
-      </html>
-    </ViewTransitions>
+        <OptionalFeatures />
+        <ReactTempus patch={!isDraftMode} />
+        <Analytics />
+      </body>
+    </html>
   )
 }

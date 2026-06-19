@@ -10,8 +10,6 @@
 
 import cn from 'clsx'
 import type { LenisOptions } from 'lenis'
-import { Footer } from '@/components/layout/footer'
-import { Header } from '@/components/layout/header'
 import { Lenis } from '@/components/layout/lenis'
 import { Theme } from '@/components/layout/theme'
 import type { ThemeName } from '@/styles/config'
@@ -109,8 +107,6 @@ export function Wrapper({
 }: WrapperProps) {
   return (
     <Theme theme={theme} global>
-      {/* Header is rendered here - do NOT add another in layout.tsx */}
-      <Header />
       <Canvas root={webgl} force={forceWebGL}>
         <main
           id="main-content"
@@ -120,8 +116,6 @@ export function Wrapper({
           {children}
         </main>
       </Canvas>
-      {/* Footer is rendered here - do NOT add another in layout.tsx */}
-      <Footer />
       {lenis && (
         <Lenis
           root
