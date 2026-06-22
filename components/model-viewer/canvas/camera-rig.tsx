@@ -122,7 +122,7 @@ export function CameraRig({
   useEffect(() => {
     if (!cameraView) return
 
-    const box = getBoundingBox(true)
+    const box = getBoundingBox(false)
     const center = new THREE.Vector3()
     box.getCenter(center)
     const distance = getFitDistance(
@@ -197,7 +197,9 @@ export function CameraRig({
         )
         const targetPos = center
           .clone()
-          .add(new THREE.Vector3(1, 1, 1).normalize().multiplyScalar(distance))
+          .add(
+            new THREE.Vector3(0, 0.2, 1).normalize().multiplyScalar(distance)
+          )
         camera.position.copy(targetPos)
         camera.up.set(0, 1, 0)
         if (controlsRef.current) {

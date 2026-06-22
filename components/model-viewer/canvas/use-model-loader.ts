@@ -9,6 +9,7 @@ export interface LoadedObject {
   id: string
   object: THREE.Object3D
   center: THREE.Vector3
+  minY: number
   url: string
 }
 
@@ -117,14 +118,17 @@ export function useModelLoader(
       (model) =>
         new Promise<LoadedObject>((resolve) => {
           const onLoaded = (object: THREE.Object3D) => {
+            // Apply correction rotation to align Blender Z-up to Three's Y-up
+            object.rotation.x = -Math.PI / 2
+
             const box = new THREE.Box3().setFromObject(object)
             const center = new THREE.Vector3()
             box.getCenter(center)
-            object.position.sub(center)
             resolve({
               id: model.id,
               object,
               center,
+              minY: box.min.y,
               url: model.url!,
             })
           }
@@ -152,6 +156,7 @@ export function useModelLoader(
                   id: model.id,
                   object: new THREE.Group(),
                   center: new THREE.Vector3(),
+                  minY: 0,
                   url: model.url!,
                 })
               }
@@ -177,6 +182,7 @@ export function useModelLoader(
                   id: model.id,
                   object: new THREE.Group(),
                   center: new THREE.Vector3(),
+                  minY: 0,
                   url: model.url!,
                 })
               }
@@ -234,9 +240,22 @@ export function useModelLoader(
   const hasCube = models.some((m) => m.type === 'cube' && m.visible)
   const hasContent = hasCube || loadedObjects.length > 0
 
+  // Calculate yOffset to align the bottom of active models with the grid at y = -0.5
+  const activeObjs = loadedObjects.filter((obj) => {
+    const model = models.find((m) => m.id === obj.id)
+    return model?.visible
+  })
+
+  let yOffset = 0
+  if (activeObjs.length > 0) {
+    const minY = Math.min(...activeObjs.map((obj) => obj.minY))
+    yOffset = -0.5 - minY
+  }
+
   return {
     loadedObjects,
     getBoundingBox,
     hasContent,
+    yOffset,
   }
 }

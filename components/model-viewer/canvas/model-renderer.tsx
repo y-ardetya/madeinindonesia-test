@@ -1,28 +1,27 @@
 'use client'
 
-import { Outlines, PivotControls } from '@react-three/drei'
+import { Outlines } from '@react-three/drei'
 import type * as THREE from 'three/webgpu'
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useModelViewerStore } from '@/components/model-viewer/model-viewer-store'
 import { ModelOutlines } from './model-outlines'
 
 interface ModelRendererProps {
   defaultCubeRef: React.RefObject<THREE.Mesh | null>
   loadedObjects: { id: string; object: THREE.Object3D; center: THREE.Vector3 }[]
-  controlsRef: React.RefObject<OrbitControlsImpl | null>
+  yOffset: number
 }
 
 export function ModelRenderer({
   defaultCubeRef,
   loadedObjects,
-  controlsRef,
+  yOffset,
 }: ModelRendererProps) {
   const models = useModelViewerStore((s) => s.models)
   const selectedId = useModelViewerStore((s) => s.selectedId)
   const setSelectedId = useModelViewerStore((s) => s.setSelectedId)
 
   return (
-    <group>
+    <group position={[0, yOffset, 0]}>
       {models.map((model) => {
         const isSelected = model.id === selectedId
 
@@ -37,33 +36,18 @@ export function ModelRenderer({
                 setSelectedId(model.id)
               }}
             >
-              <PivotControls
-                visible={isSelected}
-                anchor={[0, 0, 0]}
-                depthTest={false}
-                lineWidth={2}
-                scale={1}
-                axisColors={['#ff3653', '#00cf85', '#2fa1ff']}
-                onDragStart={() => {
-                  if (controlsRef.current) controlsRef.current.enabled = false
-                }}
-                onDragEnd={() => {
-                  if (controlsRef.current) controlsRef.current.enabled = true
-                }}
-              >
-                <mesh ref={defaultCubeRef} castShadow receiveShadow>
-                  <boxGeometry args={[1, 1, 1]} />
-                  <meshNormalMaterial />
-                  {isSelected && (
-                    <Outlines
-                      thickness={3}
-                      color="#ffffff"
-                      transparent
-                      opacity={0.9}
-                    />
-                  )}
-                </mesh>
-              </PivotControls>
+              <mesh ref={defaultCubeRef} castShadow receiveShadow>
+                <boxGeometry args={[1, 1, 1]} />
+                <meshNormalMaterial />
+                {isSelected && (
+                  <Outlines
+                    thickness={3}
+                    color="#ffffff"
+                    transparent
+                    opacity={0.9}
+                  />
+                )}
+              </mesh>
             </group>
           )
         }
@@ -80,22 +64,7 @@ export function ModelRenderer({
                 setSelectedId(model.id)
               }}
             >
-              <PivotControls
-                visible={isSelected}
-                anchor={[0, 0, 0]}
-                depthTest={false}
-                lineWidth={2}
-                scale={3}
-                axisColors={['#ff3653', '#00cf85', '#2fa1ff']}
-                onDragStart={() => {
-                  if (controlsRef.current) controlsRef.current.enabled = false
-                }}
-                onDragEnd={() => {
-                  if (controlsRef.current) controlsRef.current.enabled = true
-                }}
-              >
-                <primitive object={obj.object} />
-              </PivotControls>
+              <primitive object={obj.object} />
               <ModelOutlines object={obj.object} isSelected={isSelected} />
             </group>
           )

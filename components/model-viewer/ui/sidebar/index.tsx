@@ -120,19 +120,6 @@ const CloseIcon = () => (
   </svg>
 )
 
-const LIBRARY_MODELS = [
-  { name: '11', url: '/models/11.stl' },
-  { name: 'Alveolar 11', url: '/models/11_alveolar.stl' },
-  { name: '12', url: '/models/12.stl' },
-  { name: 'Alveolar 12', url: '/models/12_alveolar.stl' },
-  { name: '13', url: '/models/13.stl' },
-  { name: 'Alveolar 13', url: '/models/13_alveolar.stl' },
-  { name: '14', url: '/models/14.stl' },
-  { name: 'Alveolar 14', url: '/models/14_alveolar.stl' },
-  { name: '15', url: '/models/15.stl' },
-  { name: 'Alveolar 15', url: '/models/15_alveolar.stl' },
-]
-
 export function Sidebar() {
   const models = useModelViewerStore((s) => s.models)
   const selectedId = useModelViewerStore((s) => s.selectedId)
@@ -141,7 +128,6 @@ export function Sidebar() {
   const toggleVisibility = useModelViewerStore((s) => s.toggleVisibility)
   const setColor = useModelViewerStore((s) => s.setColor)
   const setSelectedId = useModelViewerStore((s) => s.setSelectedId)
-  const addLocalModel = useModelViewerStore((s) => s.addLocalModel)
 
   const [isOpen, setIsOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -207,26 +193,11 @@ export function Sidebar() {
           />
         </label>
 
-        <h3 className={s.sectionTitle}>Model Library</h3>
-        <p className={s.subtextLib}>
-          Click to add the model into viewport
-        </p>
-        <div className={s.libraryGrid}>
-          {LIBRARY_MODELS.map((m) => (
-            <button
-              key={m.url}
-              type="button"
-              className={s.libraryBtn}
-              onClick={() => addLocalModel(m.name, m.url, 'stl')}
-            >
-              {m.name}
-            </button>
-          ))}
-        </div>
-
         <div className={s.modelList}>
           <p className={s.subtextLib}>
-            Click a model to select it — you can then move, rotate, or scale it. The selected model becomes the target for the camera view settings. Click outside any model to deselect.          </p>
+            Click a model to select it. The active model name will be displayed
+            in the control panel. Click outside any model to deselect.
+          </p>
           {models.length === 0 ? (
             <div className={s.emptyState}>No models loaded</div>
           ) : (

@@ -23,6 +23,7 @@ export function SceneExtras() {
         fadeDistance={GRID_DEFAULTS.fadeDistance}
         fadeStrength={GRID_DEFAULTS.fadeStrength}
         infiniteGrid={GRID_DEFAULTS.infiniteGrid}
+        followCamera
       />
 
       <GizmoHelper alignment="bottom-right" margin={GIZMO_DEFAULTS.margin}>

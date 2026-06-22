@@ -13,7 +13,7 @@ export function Scene() {
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
   const defaultCubeRef = useRef<THREE.Mesh>(null)
 
-  const { loadedObjects, getBoundingBox, hasContent } =
+  const { loadedObjects, getBoundingBox, hasContent, yOffset } =
     useModelLoader(defaultCubeRef)
 
   return (
@@ -29,7 +29,7 @@ export function Scene() {
       <ModelRenderer
         defaultCubeRef={defaultCubeRef}
         loadedObjects={loadedObjects}
-        controlsRef={controlsRef}
+        yOffset={yOffset}
       />
 
       <SceneExtras />

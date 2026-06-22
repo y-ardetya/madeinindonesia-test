@@ -74,19 +74,66 @@ interface ModelViewerActions {
   ) => void
 }
 
+const generateDefaultModels = (): LoadedModel[] => {
+  const defaultModels: LoadedModel[] = [
+    {
+      id: 'upper-base',
+      name: 'Upper Base',
+      url: '/models/upper_base.stl',
+      type: 'stl',
+      visible: true,
+      color: '#FFB7B2',
+      positionOffset: [0, 0, 0],
+    },
+    {
+      id: 'lower-base',
+      name: 'Lower Base',
+      url: '/models/lower_base.stl',
+      type: 'stl',
+      visible: true,
+      color: '#FFB7B2',
+      positionOffset: [0, 0, 0],
+    },
+  ]
+
+  const quadrants = [1, 2, 3, 4]
+  let colorIndex = 0
+
+  for (const q of quadrants) {
+    for (let t = 1; t <= 7; t++) {
+      const id = `${q}${t}`
+      defaultModels.push({
+        id,
+        name: `${id}`,
+        url: `/models/${id}.stl`,
+        type: 'stl',
+        visible: true,
+        color: '#F4F1DE',
+        positionOffset: [0, 0, 0],
+      })
+
+      const color =
+        COLOR_PALETTE[colorIndex % COLOR_PALETTE.length]?.hex ?? '#B5EAD7'
+      colorIndex++
+      defaultModels.push({
+        id: `${id}_alveolar`,
+        name: `Alveolar ${id}`,
+        url: `/models/${id}_alveolar.stl`,
+        type: 'stl',
+        visible: true,
+        color,
+        positionOffset: [0, 0, 0],
+      })
+    }
+  }
+
+  return defaultModels
+}
+
 type ModelViewerStore = ModelViewerState & ModelViewerActions
 
 export const useModelViewerStore = create<ModelViewerStore>((set, get) => ({
-  models: [
-    {
-      id: 'default-cube',
-      name: 'Default Cube',
-      type: 'cube',
-      visible: true,
-      color: '#81B29A',
-      positionOffset: [0, 0, 0],
-    },
-  ],
+  models: generateDefaultModels(),
   selectedId: null,
   cameraView: null,
   transformMode: 'translate',
@@ -99,11 +146,7 @@ export const useModelViewerStore = create<ModelViewerStore>((set, get) => ({
     const { models } = get()
     const newModels: LoadedModel[] = []
 
-    const hasDefaultCube = models.some((m) => m.id === 'default-cube')
-    const nonCubeCount = models.filter((m) => m.type !== 'cube').length
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
+    for (const file of files) {
       if (!file) continue
       const ext = file.name.split('.').pop()?.toLowerCase()
       if (ext === 'glb' || ext === 'gltf' || ext === 'stl') {
@@ -113,36 +156,6 @@ export const useModelViewerStore = create<ModelViewerStore>((set, get) => ({
           (models.length + newModels.length) % COLOR_PALETTE.length
         const color = COLOR_PALETTE[colorIndex]?.hex ?? '#E07A5F'
 
-        // Determine spawn position offset slots
-        const slotIdx = nonCubeCount + i
-        const slotIndex = hasDefaultCube ? slotIdx + 1 : slotIdx
-
-        const slots: [number, number, number][] = [
-          [0, 0, 0], // Center
-          [10, 0, 0], // Right
-          [-10, 0, 0], // Left
-          [0, 0, -10], // Behind
-          [0, 0, 10], // Front
-          [10, 0, -10], // Right-Behind
-          [-10, 0, -10], // Left-Behind
-          [10, 0, 10], // Right-Front
-          [-10, 0, 10], // Left-Front
-        ]
-
-        let positionOffset: [number, number, number] = [0, 0, 0]
-        if (slotIndex < slots.length) {
-          positionOffset = slots[slotIndex]!
-        } else {
-          const ring = Math.floor(slotIndex / 8) + 1
-          const angle = (slotIndex % 8) * (Math.PI / 4)
-          const radius = ring * 3
-          positionOffset = [
-            Math.cos(angle) * radius,
-            0,
-            Math.sin(angle) * radius,
-          ]
-        }
-
         newModels.push({
           id,
           name: file.name,
@@ -150,7 +163,7 @@ export const useModelViewerStore = create<ModelViewerStore>((set, get) => ({
           type: ext as 'glb' | 'gltf' | 'stl',
           visible: true,
           color,
-          positionOffset,
+          positionOffset: [0, 0, 0],
         })
       }
     }
@@ -219,34 +232,6 @@ export const useModelViewerStore = create<ModelViewerStore>((set, get) => ({
   addLocalModel: (name, url, type) => {
     const { models } = get()
 
-    const hasDefaultCube = models.some((m) => m.id === 'default-cube')
-    const nonCubeCount = models.filter((m) => m.type !== 'cube').length
-
-    const slotIdx = nonCubeCount
-    const slotIndex = hasDefaultCube ? slotIdx + 1 : slotIdx
-
-    const slots: [number, number, number][] = [
-      [0, 0, 0], // Center
-      [5, 0, 0], // Right
-      [-5, 0, 0], // Left
-      [0, 0, -5], // Behind
-      [0, 0, 5], // Front
-      [5, 0, -5], // Right-Behind
-      [-5, 0, -5], // Left-Behind
-      [5, 0, 5], // Right-Front
-      [-5, 0, 5], // Left-Front
-    ]
-
-    let positionOffset: [number, number, number] = [0, 0, 0]
-    if (slotIndex < slots.length) {
-      positionOffset = slots[slotIndex]!
-    } else {
-      const ring = Math.floor(slotIndex / 8) + 1
-      const angle = (slotIndex % 8) * (Math.PI / 4)
-      const radius = ring * 5
-      positionOffset = [Math.cos(angle) * radius, 0, Math.sin(angle) * radius]
-    }
-
     const colorIndex = models.length % COLOR_PALETTE.length
     const color = COLOR_PALETTE[colorIndex]?.hex ?? '#E07A5F'
     const id = `${name}-${Date.now()}`
@@ -261,7 +246,7 @@ export const useModelViewerStore = create<ModelViewerStore>((set, get) => ({
           type,
           visible: true,
           color,
-          positionOffset,
+          positionOffset: [0, 0, 0],
         },
       ],
       fitTrigger: state.fitTrigger + 1,

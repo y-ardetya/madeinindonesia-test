@@ -29,7 +29,7 @@ export function ModelOutlines({ object, isSelected }: ModelOutlinesProps) {
     <>
       {meshes.map((mesh) => (
         <Fragment key={mesh.uuid}>
-          {createPortal(<Outlines thickness={1.5} color="#ffffff" />, mesh)}
+          {createPortal(<Outlines thickness={3} color="#ffffff" />, mesh)}
         </Fragment>
       ))}
     </>

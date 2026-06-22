@@ -36,15 +36,15 @@ export const ORBIT_CONTROLS_DEFAULTS = {
 } as const
 
 export const GRID_DEFAULTS = {
-  position: [0, -0.5, 0] as [number, number, number],
+  position: [0, -1, 0] as [number, number, number],
   args: [50, 50] as [number, number],
-  cellSize: 1,
+  cellSize: 5,
   cellThickness: 1,
   cellColor: '#2a2a30',
-  sectionSize: 5,
+  sectionSize: 25,
   sectionThickness: 1.5,
   sectionColor: '#5a5a65',
-  fadeDistance: 100,
+  fadeDistance: 1000,
   fadeStrength: 1.5,
   infiniteGrid: true,
 } as const
